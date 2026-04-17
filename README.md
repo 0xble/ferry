@@ -67,17 +67,6 @@ ferry unshare <target>
 ferry doctor
 ```
 
-## Requirements
-
-- [Tailscale](https://tailscale.com)
-
-## Install
-
-```sh
-go install github.com/0xble/ferry/cmd/ferry@latest
-go install github.com/0xble/ferry/cmd/ferryd@latest
-```
-
 ## How it compares
 
 | Tool                    | Tailnet-scoped | Rich previews | Per-share token | Snapshot | Auto expiry |
@@ -102,6 +91,17 @@ three HTTP listeners.
 
 State is stored in `~/.local/state/ferry/` with the HMAC secret in a
 0600-mode file under a 0700-mode directory.
+
+## Requirements
+
+- [Tailscale](https://tailscale.com)
+
+## Install
+
+```sh
+go install github.com/0xble/ferry/cmd/ferry@latest
+go install github.com/0xble/ferry/cmd/ferryd@latest
+```
 
 ## Contributing
 
