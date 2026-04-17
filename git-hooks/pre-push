@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Full repo gate before push.
+
+set -euo pipefail
+exec ./bin/check

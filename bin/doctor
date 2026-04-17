@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Machine, runtime, and state diagnostics. Never run from hooks.
+#
+# Usage: bin/doctor
+#
+# Informational only. Exits 0 unless a required prerequisite is missing.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+ok=true
+
+echo ">> toolchain"
+if have go; then
+  printf '  go: %s\n' "$(go version | awk '{print $3}')"
+else
+  printf '  go: MISSING (required)\n'
+  ok=false
+fi
+
+echo ">> tailscale"
+if have tailscale; then
+  if tailscale status >/dev/null 2>&1; then
+    printf '  tailscale: reachable\n'
+  else
+    printf '  tailscale: installed but not running or not logged in\n'
+  fi
+else
+  printf '  tailscale: not installed (required for end-to-end sharing)\n'
+fi
+
+echo ">> ferry state"
+state_dir="${HOME}/.local/state/ferry"
+if [[ -d "$state_dir" ]]; then
+  printf '  state dir: %s\n' "$state_dir"
+  [[ -f "$state_dir/shares.db" ]] && printf '  db: present\n' || printf '  db: not yet created\n'
+  [[ -f "$state_dir/secret" ]] && printf '  secret: present\n' || printf '  secret: not yet created\n'
+  [[ -d "$state_dir/logs" ]] && printf '  logs: %s\n' "$state_dir/logs" || printf '  logs: not yet created\n'
+else
+  printf '  state dir: not yet created (populated on first `ferry publish`)\n'
+fi
+
+echo ">> launchd (darwin only)"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  label="${FERRY_LAUNCH_AGENT_LABEL:-}"
+  if [[ -n "$label" ]]; then
+    if launchctl list | grep -q "$label"; then
+      printf '  %s: loaded\n' "$label"
+    else
+      printf '  %s: FERRY_LAUNCH_AGENT_LABEL set but agent not loaded\n' "$label"
+    fi
+  else
+    printf '  FERRY_LAUNCH_AGENT_LABEL: unset (daemon will spawn directly)\n'
+  fi
+else
+  printf '  skipped on %s\n' "$(uname -s)"
+fi
+
+$ok || exit 1

@@ -1,0 +1,7 @@
+# Default owner for everything
+* @0xble
+
+# Security-sensitive paths
+/SECURITY.md @0xble
+/.github/ @0xble
+/.goreleaser.yaml @0xble

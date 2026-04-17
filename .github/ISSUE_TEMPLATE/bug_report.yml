@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a reproducible bug in ferry or ferryd.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the actual behavior and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The exact command or sequence that triggers the bug.
+      placeholder: |
+        1. ferry publish ~/tmp/file.md
+        2. open URL in browser
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: ferry-version
+    attributes:
+      label: ferry version
+      description: Output of `ferry --version` if available, otherwise the commit SHA.
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS and architecture
+      placeholder: macOS 15.0 arm64
+    validations:
+      required: true
+
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version
+      description: Output of `go version`. Only required if you built from source.
+
+  - type: input
+    id: tailscale-version
+    attributes:
+      label: Tailscale version
+      description: Output of `tailscale version` if relevant.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Daemon logs
+      description: Relevant excerpt from `~/.local/state/ferry/logs/ferryd.log`.
+      render: text

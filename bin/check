@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Canonical repo gate. Deterministic, non-mutating. Run locally and in CI.
+#
+# Usage: bin/check
+#
+# Exits non-zero if any stage fails. Stages run in a fixed order so the first
+# failure is the one worth fixing.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if ! command -v go >/dev/null 2>&1; then
+  echo "env_missing: go toolchain not found on PATH" >&2
+  exit 127
+fi
+
+run() {
+  local stage=$1
+  shift
+  printf '>> %s\n' "$stage"
+  "$@"
+  printf '\n'
+}
+
+run vet    go vet ./...
+run test   go test ./...
+run build  go build ./...
+
+echo "all checks passed"

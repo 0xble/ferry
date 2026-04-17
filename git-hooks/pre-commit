@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Fast staged autofix check. Runs on every commit.
+
+set -euo pipefail
+
+staged=$(git diff --cached --name-only --diff-filter=ACM -- '*.go' || true)
+if [[ -z "$staged" ]]; then
+  exit 0
+fi
+
+unformatted=$(gofmt -l $staged 2>/dev/null || true)
+if [[ -n "$unformatted" ]]; then
+  echo "gofmt: unformatted files staged" >&2
+  echo "$unformatted" >&2
+  echo "" >&2
+  echo "fix with: gofmt -w $unformatted" >&2
+  exit 1
+fi

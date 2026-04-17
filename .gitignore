@@ -1,0 +1,7 @@
+/bin/ferry
+/bin/ferryd
+dist/
+*.db
+*.db-shm
+*.db-wal
+.worktrees/
