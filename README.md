@@ -93,25 +93,7 @@ go install github.com/0xble/ferry/cmd/ferryd@latest
 `ferry` is the client CLI. `ferryd` is the background daemon that runs
 three HTTP listeners.
 
-```
-                tailnet peer
-                +-----------+
-                |  browser  |
-                +-----+-----+
-                      |
-                      v   port 39124
-                +-----------+    reads from
-                |  ferryd   |    ~/.local/state/ferry/
-                |  daemon   |    + your filesystem
-                +-----+-----+
-                      ^
-        127.0.0.1:39125 (admin API)
-                      |
-                +-----+-----+
-                |   ferry   |    publish, list, unshare,
-                |    CLI    |    renew, doctor
-                +-----------+
-```
+![Architecture: ferry CLI talks to ferryd over the loopback admin API; tailnet peers hit the public listener](docs/architecture.svg)
 
 - **Public** (tailnet IP, port 39124): preview and raw file endpoints
 - **Loopback** (127.0.0.1, port 39124): same as public, for local access

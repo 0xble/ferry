@@ -1,0 +1,22 @@
+direction: right
+
+ferry: ferry CLI {
+  shape: rectangle
+}
+
+daemon: ferryd daemon {
+  admin: "Admin API\n127.0.0.1:39125"
+  public: "Public listener\ntailnet IP : 39124"
+}
+
+state: "~/.local/state/ferry/\n+ filesystem" {
+  shape: cylinder
+}
+
+browser: "Tailnet peer\nbrowser" {
+  shape: rectangle
+}
+
+ferry -> daemon.admin: "publish, list,\nunshare, renew"
+browser -> daemon.public: "preview, raw"
+daemon -> state: "read"
