@@ -18,17 +18,6 @@ your tailnet through preview-rich URLs with token-based access control.
 - Automatic share expiry and garbage collection
 - Snapshot mode for point-in-time copies
 
-## Requirements
-
-- [Tailscale](https://tailscale.com) running on the host machine
-
-## Install
-
-```sh
-go install github.com/0xble/ferry/cmd/ferry@latest
-go install github.com/0xble/ferry/cmd/ferryd@latest
-```
-
 ## Usage
 
 ```sh
@@ -58,6 +47,17 @@ ferry unshare <target>
 
 # Check daemon and Tailscale health
 ferry doctor
+```
+
+## Requirements
+
+- [Tailscale](https://tailscale.com) running on the host machine
+
+## Install
+
+```sh
+go install github.com/0xble/ferry/cmd/ferry@latest
+go install github.com/0xble/ferry/cmd/ferryd@latest
 ```
 
 ## Architecture
