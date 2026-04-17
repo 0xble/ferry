@@ -51,7 +51,7 @@ ferry doctor
 
 ## Requirements
 
-- [Tailscale](https://tailscale.com) running on the host machine
+- [Tailscale](https://tailscale.com)
 
 ## Install
 
