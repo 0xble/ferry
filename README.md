@@ -9,14 +9,14 @@ Tailscale-first file sharing CLI. Publish files and directories as
 preview-rich URLs scoped to your tailnet, authenticated with per-share
 tokens.
 
-![Markdown article rendered with frontmatter, tags, and metadata](docs/screenshots/hero-markdown.png)
+![Markdown article rendered with frontmatter, tags, and metadata](docs/assets/hero-markdown.png)
 
 ## Previews
 
 | | |
 |---|---|
-| [![Code preview with syntax highlighting](docs/screenshots/preview-code.png)](docs/screenshots/preview-code.png) | [![CSV rendered as a sortable table](docs/screenshots/preview-csv.png)](docs/screenshots/preview-csv.png) |
-| [![PDF rendered with pdf.js](docs/screenshots/preview-pdf.png)](docs/screenshots/preview-pdf.png) | [![Directory listing with breadcrumbs](docs/screenshots/preview-directory.png)](docs/screenshots/preview-directory.png) |
+| [![Code preview with syntax highlighting](docs/assets/preview-code.png)](docs/assets/preview-code.png) | [![CSV rendered as a sortable table](docs/assets/preview-csv.png)](docs/assets/preview-csv.png) |
+| [![PDF rendered with pdf.js](docs/assets/preview-pdf.png)](docs/assets/preview-pdf.png) | [![Directory listing with breadcrumbs](docs/assets/preview-directory.png)](docs/assets/preview-directory.png) |
 
 ## Use it to
 
@@ -93,7 +93,7 @@ go install github.com/0xble/ferry/cmd/ferryd@latest
 `ferry` is the client CLI. `ferryd` is the background daemon that runs
 three HTTP listeners.
 
-![Architecture: ferry CLI talks to ferryd over the loopback admin API; tailnet peers hit the public listener](docs/architecture.svg)
+![Architecture: ferry CLI talks to ferryd over the loopback admin API; tailnet peers hit the public listener](docs/assets/architecture.svg)
 
 - **Public** (tailnet IP, port 39124): preview and raw file endpoints
 - **Loopback** (127.0.0.1, port 39124): same as public, for local access
