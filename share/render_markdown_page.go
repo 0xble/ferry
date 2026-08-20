@@ -725,6 +725,16 @@ a:hover { text-decoration: underline; }
   padding-right: 3.25rem;
 }
 
+/* Keep the copy control attached to the visible edge of horizontally
+   scrollable code blocks instead of letting it scroll away with the code. */
+.markdown-body pre.copyable-block > .block-copy-button {
+  position: sticky;
+  float: right;
+  top: 0.75rem;
+  right: 0.75rem;
+  margin-right: -2.5rem;
+}
+
 .markdown-body blockquote.copyable-block {
   padding: 0.75rem 3rem 0.75rem 1em;
 }

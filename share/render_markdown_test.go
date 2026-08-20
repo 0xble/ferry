@@ -614,6 +614,8 @@ fields:
 		`data-copy-kind="code"`,
 		`closest(".action-copy, .block-copy-button")`,
 		`.markdown-body .block-copy-button`,
+		`.markdown-body pre.copyable-block > .block-copy-button`,
+		`position: sticky`,
 	} {
 		if !strings.Contains(body, needle) {
 			t.Fatalf("expected markdown preview to contain %q, got %q", needle, body)
