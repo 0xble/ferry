@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -348,6 +349,12 @@ func decorateMarkdownHTML(rendered string) (string, error) {
 		decorateMarkdownCopyBlock(sel, "details", "Copy details")
 	})
 	doc.Find("table").Each(func(_ int, sel *goquery.Selection) {
+		if markdownTableColumnCount(sel) == 2 {
+			addMarkdownHTMLClass(sel, "markdown-table-columns-2")
+		}
+		if sel.Find("pre").Length() > 0 {
+			addMarkdownHTMLClass(sel, "markdown-table-has-pre")
+		}
 		sel.WrapHtml(`<div class="markdown-table-scroll"></div>`)
 	})
 
@@ -356,6 +363,39 @@ func decorateMarkdownHTML(rendered string) (string, error) {
 		return "", err
 	}
 	return html, nil
+}
+
+func markdownTableColumnCount(sel *goquery.Selection) int {
+	if sel == nil {
+		return 0
+	}
+
+	maxColumns := 0
+	hasRowspan := false
+	sel.Find("tr").Each(func(_ int, row *goquery.Selection) {
+		columns := 0
+		row.ChildrenFiltered("th, td").Each(func(_ int, cell *goquery.Selection) {
+			if raw, ok := cell.Attr("rowspan"); ok {
+				if span, err := strconv.Atoi(raw); err == nil && span > 1 {
+					hasRowspan = true
+				}
+			}
+			span := 1
+			if raw, ok := cell.Attr("colspan"); ok {
+				if parsed, err := strconv.Atoi(raw); err == nil && parsed > 1 {
+					span = parsed
+				}
+			}
+			columns += span
+		})
+		if columns > maxColumns {
+			maxColumns = columns
+		}
+	})
+	if hasRowspan {
+		return 0
+	}
+	return maxColumns
 }
 
 func decorateMarkdownMermaidBlock(sel *goquery.Selection) bool {

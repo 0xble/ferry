@@ -910,6 +910,46 @@ a:hover { text-decoration: underline; }
     font-size: 0.96rem;
   }
 
+  .markdown-body table.markdown-table-columns-2 {
+    width: 100%;
+    min-width: 100%;
+    table-layout: fixed;
+  }
+
+  .markdown-body table.markdown-table-columns-2 th,
+  .markdown-body table.markdown-table-columns-2 td {
+    min-width: 0;
+    max-width: none;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+  }
+
+  .markdown-body table.markdown-table-columns-2 th:first-child,
+  .markdown-body table.markdown-table-columns-2 td:first-child {
+    width: 36%;
+  }
+
+  .markdown-body table.markdown-table-columns-2 td:first-child code {
+    padding: 0.1em 0.2em;
+    font-size: 0.75em;
+  }
+
+  .markdown-body table.markdown-table-columns-2.markdown-table-has-pre th:first-child,
+  .markdown-body table.markdown-table-columns-2.markdown-table-has-pre td:first-child {
+    width: 30%;
+  }
+
+  .markdown-body table.markdown-table-columns-2 pre {
+    max-width: 100%;
+    margin-bottom: 0;
+    padding: 0.7rem 2rem 0.7rem 0.7rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
   .markdown-body .block-copy-button {
     opacity: 1;
     pointer-events: auto;
@@ -931,6 +971,18 @@ a:hover { text-decoration: underline; }
 
   .markdown-body .heading-anchor {
     display: none;
+  }
+}
+
+@media (max-width: 340px) {
+  .markdown-body table.markdown-table-columns-2 {
+    width: 19rem;
+    min-width: 19rem;
+  }
+
+  .markdown-body table.markdown-table-columns-2.markdown-table-has-pre th:first-child,
+  .markdown-body table.markdown-table-columns-2.markdown-table-has-pre td:first-child {
+    width: 32%;
   }
 }
 </style>

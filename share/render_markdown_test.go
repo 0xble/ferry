@@ -419,6 +419,40 @@ func TestRenderMarkdownDocumentWrapsTablesForResponsiveScrolling(t *testing.T) {
 	if strings.Contains(rendered, `copyable-block-table`) {
 		t.Fatalf("expected tables to omit copy wrapper classes, got %q", rendered)
 	}
+	if strings.Contains(rendered, `markdown-table-columns-2`) {
+		t.Fatalf("expected three-column tables to retain horizontal overflow behavior, got %q", rendered)
+	}
+}
+
+func TestRenderMarkdownDocumentMarksTwoColumnTablesForMobileWrapping(t *testing.T) {
+	t.Parallel()
+
+	source := []byte("| Endpoint | What it does |\n| --- | --- |\n| `/status` | <pre>pay-server<br>├─ authenticate Link session<br>└─ translate consumer-safe state</pre> |\n")
+	rendered, _, err := RenderMarkdownDocument(source)
+	if err != nil {
+		t.Fatalf("RenderMarkdownDocument: %v", err)
+	}
+
+	if !strings.Contains(rendered, `<table class="markdown-table-columns-2 markdown-table-has-pre">`) {
+		t.Fatalf("expected two-column tables to opt into mobile wrapping, got %q", rendered)
+	}
+	if !strings.Contains(rendered, `<pre class="copyable-block copyable-block-code">`) {
+		t.Fatalf("expected representative preformatted table content to remain intact, got %q", rendered)
+	}
+}
+
+func TestRenderMarkdownDocumentKeepsComplexTablesScrollable(t *testing.T) {
+	t.Parallel()
+
+	source := []byte(`<table><thead><tr><th colspan="2">Group</th><th>Third</th></tr></thead><tbody><tr><td>A</td><td>B</td><td>C</td></tr></tbody></table>`)
+	rendered, _, err := RenderMarkdownDocument(source)
+	if err != nil {
+		t.Fatalf("RenderMarkdownDocument: %v", err)
+	}
+
+	if strings.Contains(rendered, `markdown-table-columns-2`) {
+		t.Fatalf("expected logical three-column tables to retain horizontal overflow behavior, got %q", rendered)
+	}
 }
 
 func TestRewriteMarkdownLinksRewritesRelativeTargets(t *testing.T) {
@@ -753,6 +787,25 @@ func TestHandlePreviewSkipsMarkdownTableCopyButtons(t *testing.T) {
 		`margin-bottom: 0;`,
 		`-webkit-text-size-adjust: 100%;`,
 		`text-size-adjust: 100%;`,
+		`.markdown-body table.markdown-table-columns-2 {`,
+		`table-layout: fixed;`,
+		`.markdown-body table.markdown-table-columns-2 th:first-child,`,
+		`width: 36%;`,
+		`.markdown-body table.markdown-table-columns-2 td:first-child code {`,
+		`padding: 0.1em 0.2em;`,
+		`font-size: 0.75em;`,
+		`.markdown-body table.markdown-table-columns-2.markdown-table-has-pre th:first-child,`,
+		`width: 30%;`,
+		`.markdown-body table.markdown-table-columns-2 pre {`,
+		`padding: 0.7rem 2rem 0.7rem 0.7rem;`,
+		`font-size: 0.8rem;`,
+		`white-space: pre-wrap;`,
+		`overflow-wrap: normal;`,
+		`word-break: normal;`,
+		`@media (max-width: 340px)`,
+		`width: 19rem;`,
+		`min-width: 19rem;`,
+		`width: 32%;`,
 	} {
 		if !strings.Contains(body, needle) {
 			t.Fatalf("expected responsive markdown table markup or styling %q, got %q", needle, body)
