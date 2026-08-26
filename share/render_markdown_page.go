@@ -645,11 +645,17 @@ a:hover { text-decoration: underline; }
   border: 0;
 }
 
-.markdown-body table {
-  display: block;
-  width: max-content;
+.markdown-body .markdown-table-scroll {
   max-width: 100%;
-  overflow: auto;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.markdown-body table {
+  width: max-content;
+  min-width: 100%;
+  margin-bottom: 0;
   border-spacing: 0;
 }
 

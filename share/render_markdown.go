@@ -342,6 +342,9 @@ func decorateMarkdownHTML(rendered string) (string, error) {
 	doc.Find("details").Each(func(_ int, sel *goquery.Selection) {
 		decorateMarkdownCopyBlock(sel, "details", "Copy details")
 	})
+	doc.Find("table").Each(func(_ int, sel *goquery.Selection) {
+		sel.WrapHtml(`<div class="markdown-table-scroll"></div>`)
+	})
 
 	html, err := doc.Find("#share-markdown-root").Html()
 	if err != nil {

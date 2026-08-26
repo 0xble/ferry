@@ -340,14 +340,20 @@ func TestRenderMarkdownDocumentKeepsRegularBlockquoteWithAlertText(t *testing.T)
 	}
 }
 
-func TestRenderMarkdownDocumentOmitsCopyDecorationForTables(t *testing.T) {
+func TestRenderMarkdownDocumentWrapsTablesForResponsiveScrolling(t *testing.T) {
 	t.Parallel()
 
-	rendered, _, err := RenderMarkdownDocument([]byte("| Name | Value |\n| --- | --- |\n| alpha | beta |\n"))
+	rendered, _, err := RenderMarkdownDocument([]byte("| Method | Endpoint | What it does |\n| --- | --- | --- |\n| POST | `/v1/consumers/payment_details/export_wallet/status` | Reads the consumer's current export status so Link can render the right state. |\n"))
 	if err != nil {
 		t.Fatalf("RenderMarkdownDocument: %v", err)
 	}
 
+	if !strings.Contains(rendered, `<div class="markdown-table-scroll"><table>`) {
+		t.Fatalf("expected table to be wrapped in a responsive scroll container, got %q", rendered)
+	}
+	if strings.Count(rendered, `class="markdown-table-scroll"`) != 1 {
+		t.Fatalf("expected exactly one responsive table wrapper, got %q", rendered)
+	}
 	if strings.Contains(rendered, `data-copy-kind="table"`) {
 		t.Fatalf("expected tables to omit copy decoration, got %q", rendered)
 	}
@@ -680,6 +686,17 @@ func TestHandlePreviewSkipsMarkdownTableCopyButtons(t *testing.T) {
 	}
 
 	body := res.Body.String()
+	for _, needle := range []string{
+		`class="markdown-table-scroll"`,
+		`.markdown-body .markdown-table-scroll {`,
+		`overflow-x: auto;`,
+		`min-width: 100%;`,
+		`margin-bottom: 0;`,
+	} {
+		if !strings.Contains(body, needle) {
+			t.Fatalf("expected responsive markdown table markup or styling %q, got %q", needle, body)
+		}
+	}
 	if strings.Contains(body, `data-copy-kind="table"`) {
 		t.Fatalf("expected markdown table to omit block copy button, got %q", body)
 	}
