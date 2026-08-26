@@ -402,7 +402,7 @@ func TestRenderMarkdownDocumentKeepsRegularBlockquoteWithAlertText(t *testing.T)
 func TestRenderMarkdownDocumentWrapsTablesForResponsiveScrolling(t *testing.T) {
 	t.Parallel()
 
-	rendered, _, err := RenderMarkdownDocument([]byte("| Method | Endpoint | What it does |\n| --- | --- | --- |\n| POST | `/v1/consumers/payment_details/export_wallet/status` | Reads the consumer's current export status so Link can render the right state. |\n"))
+	rendered, _, err := RenderMarkdownDocument([]byte("| Method | Endpoint | What it does |\n| --- | --- | --- |\n| POST | `/v1/consumers/payment_details/export_wallet/status` | Reads the consumer's current export status so Link can render the right state. |\n| | status | Reports status. |\n"))
 	if err != nil {
 		t.Fatalf("RenderMarkdownDocument: %v", err)
 	}
@@ -412,6 +412,15 @@ func TestRenderMarkdownDocumentWrapsTablesForResponsiveScrolling(t *testing.T) {
 	}
 	if strings.Count(rendered, `class="markdown-table-scroll"`) != 1 {
 		t.Fatalf("expected exactly one responsive table wrapper, got %q", rendered)
+	}
+	if !strings.Contains(rendered, `<td class="markdown-table-cell-compact">POST</td>`) {
+		t.Fatalf("expected short table values to use compact columns, got %q", rendered)
+	}
+	if !strings.Contains(rendered, `<td class="markdown-table-cell-code"><code>/v1/consumers/payment_details/export_wallet/status</code></td>`) {
+		t.Fatalf("expected long code values to use readable wrapping columns, got %q", rendered)
+	}
+	if !strings.Contains(rendered, `<td class="markdown-table-cell-compact"></td>`) {
+		t.Fatalf("expected empty table values not to widen compact columns, got %q", rendered)
 	}
 	if strings.Contains(rendered, `data-copy-kind="table"`) {
 		t.Fatalf("expected tables to omit copy decoration, got %q", rendered)
@@ -749,8 +758,17 @@ func TestHandlePreviewSkipsMarkdownTableCopyButtons(t *testing.T) {
 		`class="markdown-table-scroll"`,
 		`.markdown-body .markdown-table-scroll {`,
 		`overflow-x: auto;`,
-		`min-width: 100%;`,
+		`width: 100%;`,
 		`margin-bottom: 0;`,
+		`min-width: min(16rem, 68vw);`,
+		`max-width: min(32rem, 80vw);`,
+		`overflow-wrap: anywhere;`,
+		`vertical-align: top;`,
+		`.markdown-body table .markdown-table-cell-compact {`,
+		`max-width: min(12rem, 48vw);`,
+		`.markdown-body table .markdown-table-cell-code {`,
+		`min-width: min(18rem, 72vw);`,
+		`max-width: min(36rem, 88vw);`,
 		`-webkit-text-size-adjust: 100%;`,
 		`text-size-adjust: 100%;`,
 	} {
@@ -764,6 +782,9 @@ func TestHandlePreviewSkipsMarkdownTableCopyButtons(t *testing.T) {
 	if strings.Contains(body, `.markdown-body table {
   display: block;`) {
 		t.Fatalf("expected table semantics to remain intact, got %q", body)
+	}
+	if strings.Contains(body, `width: max-content;`) {
+		t.Fatalf("expected table content to wrap before horizontal scrolling, got %q", body)
 	}
 }
 

@@ -348,6 +348,9 @@ func decorateMarkdownHTML(rendered string) (string, error) {
 		decorateMarkdownCopyBlock(sel, "details", "Copy details")
 	})
 	doc.Find("table").Each(func(_ int, sel *goquery.Selection) {
+		sel.Find("th, td").Each(func(_ int, cell *goquery.Selection) {
+			decorateMarkdownTableCell(cell)
+		})
 		sel.WrapHtml(`<div class="markdown-table-scroll"></div>`)
 	})
 
@@ -373,6 +376,26 @@ func decorateMarkdownMermaidBlock(sel *goquery.Selection) bool {
 	wrapper.PrependHtml(renderMarkdownCopyButtonHTML("code", "Copy diagram source"))
 	wrapper.AppendHtml(`<div class="mermaid-diagram" role="img" aria-label="Mermaid diagram"></div>`)
 	return true
+}
+
+func decorateMarkdownTableCell(sel *goquery.Selection) {
+	if sel == nil {
+		return
+	}
+	text := strings.TrimSpace(sel.Text())
+	if text == "" {
+		addMarkdownHTMLClass(sel, "markdown-table-cell-compact")
+		return
+	}
+	if len([]rune(text)) <= 16 {
+		addMarkdownHTMLClass(sel, "markdown-table-cell-compact")
+		return
+	}
+
+	code := sel.ChildrenFiltered("code")
+	if code.Length() == 1 && sel.Children().Length() == 1 && strings.TrimSpace(code.Text()) == text {
+		addMarkdownHTMLClass(sel, "markdown-table-cell-code")
+	}
 }
 
 func decorateMarkdownAlert(sel *goquery.Selection) {

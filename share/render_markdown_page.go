@@ -785,16 +785,29 @@ a:hover { text-decoration: underline; }
 }
 
 .markdown-body table {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
   margin-bottom: 0;
   border-spacing: 0;
 }
 
 .markdown-body table th,
 .markdown-body table td {
+  min-width: min(16rem, 68vw);
+  max-width: min(32rem, 80vw);
   padding: 0.5rem 0.8rem;
   border: 1px solid var(--preview-border);
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.markdown-body table .markdown-table-cell-compact {
+  min-width: 0;
+  max-width: min(12rem, 48vw);
+}
+
+.markdown-body table .markdown-table-cell-code {
+  min-width: min(18rem, 72vw);
+  max-width: min(36rem, 88vw);
 }
 
 .markdown-body table tr {
