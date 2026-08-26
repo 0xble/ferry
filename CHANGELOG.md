@@ -17,6 +17,9 @@ Generated release notes for tagged versions are also published on the
 
 ### Fixed
 
+- CLI health checks now use a daemon-provided, loopback-only probe URL instead
+  of requiring the local MagicDNS name to resolve. Redirects are rejected, and
+  older daemons retain the existing public-URL fallback.
 - Wide Markdown tables now retain table semantics while scrolling horizontally on
   narrow screens.
 

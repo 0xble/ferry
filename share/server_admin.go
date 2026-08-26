@@ -3,6 +3,7 @@ package share
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,6 +15,7 @@ func (d *Daemon) handleAdminHealth(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":                true,
 		"admin_addr":        d.cfg.AdminAddr,
+		"health_base_url":   fmt.Sprintf("http://127.0.0.1:%d", d.cfg.PublicPort),
 		"public_base_url":   d.PublicBaseURL(),
 		"external_base_url": d.ExternalBaseURL(),
 	})

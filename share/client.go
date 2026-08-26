@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -21,6 +22,7 @@ type Client struct {
 type healthResponse struct {
 	OK            bool   `json:"ok"`
 	PublicBaseURL string `json:"public_base_url"`
+	HealthBaseURL string `json:"health_base_url"`
 }
 
 // NewClient builds an admin client. A path-shaped address (or a "unix:"
@@ -33,7 +35,12 @@ type healthResponse struct {
 // requested address.
 func NewClient(adminAddr string) *Client {
 	network, target := parseAdminAddr(strings.TrimSpace(adminAddr))
-	publicHTTP := &http.Client{Timeout: 3 * time.Second}
+	publicHTTP := &http.Client{
+		Timeout: 3 * time.Second,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 
 	if network == "unix" {
 		socketPath := target
@@ -71,8 +78,7 @@ func (c *Client) Health() error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("health status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return fmt.Errorf("health status %d", resp.StatusCode)
 	}
 
 	var report healthResponse
@@ -82,20 +88,49 @@ func (c *Client) Health() error {
 	if !report.OK {
 		return fmt.Errorf("admin health not ok")
 	}
-	publicBase := strings.TrimSpace(report.PublicBaseURL)
-	if publicBase == "" {
+	healthBase := strings.TrimSpace(report.HealthBaseURL)
+	requireLoopback := healthBase != ""
+	if healthBase == "" {
+		healthBase = strings.TrimSpace(report.PublicBaseURL)
+	}
+	if healthBase == "" {
 		return fmt.Errorf("admin health missing public base url")
 	}
+	healthURL, err := buildHealthURL(healthBase, requireLoopback)
+	if err != nil {
+		return err
+	}
+	return c.probePublicHealth(healthURL)
+}
 
-	publicURL := strings.TrimRight(publicBase, "/") + "/healthz"
-	publicResp, err := c.publicHTTP.Get(publicURL)
+func buildHealthURL(baseURL string, requireLoopback bool) (string, error) {
+	u, err := url.Parse(strings.TrimSpace(baseURL))
+	if err != nil {
+		return "", fmt.Errorf("invalid health base url: %w", err)
+	}
+	if (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+		return "", fmt.Errorf("invalid health base url")
+	}
+	if u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
+		return "", fmt.Errorf("invalid health base url")
+	}
+	if requireLoopback {
+		ip := net.ParseIP(u.Hostname())
+		if ip == nil || !ip.IsLoopback() {
+			return "", fmt.Errorf("health base url must use a loopback IP address")
+		}
+	}
+	return strings.TrimRight(u.String(), "/") + "/healthz", nil
+}
+
+func (c *Client) probePublicHealth(healthURL string) error {
+	publicResp, err := c.publicHTTP.Get(healthURL)
 	if err != nil {
 		return fmt.Errorf("public health request failed: %w", err)
 	}
 	defer func() { _ = publicResp.Body.Close() }()
 	if publicResp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(publicResp.Body)
-		return fmt.Errorf("public health status %d: %s", publicResp.StatusCode, strings.TrimSpace(string(body)))
+		return fmt.Errorf("public health status %d", publicResp.StatusCode)
 	}
 
 	return nil

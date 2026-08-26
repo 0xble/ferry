@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -37,6 +38,117 @@ func TestClientHealthChecksAdminAndPublic(t *testing.T) {
 	client := NewClient(adminServer.URL)
 	if err := client.Health(); err != nil {
 		t.Fatalf("Health: %v", err)
+	}
+}
+
+func TestClientHealthUsesLoopbackHealthURLWhenTailnetURLIsUnresolvable(t *testing.T) {
+	t.Parallel()
+
+	healthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/healthz" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer healthServer.Close()
+
+	adminServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/admin/health" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"ok":true,"public_base_url":"http://unresolvable.invalid:39124","health_base_url":"%s"}`, healthServer.URL)
+	}))
+	defer adminServer.Close()
+
+	client := NewClient(adminServer.URL)
+	if err := client.Health(); err != nil {
+		t.Fatalf("Health should use the loopback health URL: %v", err)
+	}
+}
+
+func TestClientHealthRejectsNonLoopbackHealthURLWithoutFallingBack(t *testing.T) {
+	t.Parallel()
+
+	publicServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer publicServer.Close()
+
+	adminServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/admin/health" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"ok":true,"public_base_url":"%s","health_base_url":"https://example.com"}`, publicServer.URL)
+	}))
+	defer adminServer.Close()
+
+	client := NewClient(adminServer.URL)
+	err := client.Health()
+	if err == nil {
+		t.Fatal("expected non-loopback health_base_url to be rejected")
+	}
+	if !strings.Contains(err.Error(), "loopback IP address") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBuildHealthURLRejectsNonLiteralLoopbackHosts(t *testing.T) {
+	t.Parallel()
+
+	for _, baseURL := range []string{
+		"http://localhost:39124",
+		"http://localhost.:39124",
+		"http://127.0.0.1.:39124",
+		"https://example.com",
+	} {
+		baseURL := baseURL
+		t.Run(baseURL, func(t *testing.T) {
+			t.Parallel()
+			if _, err := buildHealthURL(baseURL, true); err == nil {
+				t.Fatalf("expected %q to be rejected", baseURL)
+			}
+		})
+	}
+}
+
+func TestClientHealthRejectsRedirects(t *testing.T) {
+	t.Parallel()
+
+	var redirectedHits atomic.Int32
+	redirectTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		redirectedHits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer redirectTarget.Close()
+
+	redirectServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, redirectTarget.URL+"/healthz", http.StatusFound)
+	}))
+	defer redirectServer.Close()
+
+	adminServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/admin/health" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"ok":true,"health_base_url":"%s"}`, redirectServer.URL)
+	}))
+	defer adminServer.Close()
+
+	client := NewClient(adminServer.URL)
+	err := client.Health()
+	if err == nil || !strings.Contains(err.Error(), "public health status 302") {
+		t.Fatalf("expected redirect to fail closed, got %v", err)
+	}
+	if got := redirectedHits.Load(); got != 0 {
+		t.Fatalf("redirect target received %d requests, want 0", got)
 	}
 }
 

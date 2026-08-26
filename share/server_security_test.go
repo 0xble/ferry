@@ -10,6 +10,22 @@ import (
 	"time"
 )
 
+func TestAdminHealthUsesLoopbackProbeURL(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDaemon(t)
+	d.cfg.PublicPort = 4242
+	res := httptest.NewRecorder()
+	d.handleAdminHealth(res, httptest.NewRequest(http.MethodGet, "/admin/health", nil))
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("admin health status = %d, want %d", res.Code, http.StatusOK)
+	}
+	if !strings.Contains(res.Body.String(), `"health_base_url":"http://127.0.0.1:4242"`) {
+		t.Fatalf("expected loopback health URL, got %q", res.Body.String())
+	}
+}
+
 func TestPublicMuxSetsSecurityHeaders(t *testing.T) {
 	t.Parallel()
 
