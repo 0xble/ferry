@@ -751,6 +751,8 @@ func TestHandlePreviewSkipsMarkdownTableCopyButtons(t *testing.T) {
 		`overflow-x: auto;`,
 		`min-width: 100%;`,
 		`margin-bottom: 0;`,
+		`-webkit-text-size-adjust: 100%;`,
+		`text-size-adjust: 100%;`,
 	} {
 		if !strings.Contains(body, needle) {
 			t.Fatalf("expected responsive markdown table markup or styling %q, got %q", needle, body)

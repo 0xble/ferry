@@ -780,6 +780,8 @@ a:hover { text-decoration: underline; }
   margin-bottom: 1rem;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .markdown-body table {
