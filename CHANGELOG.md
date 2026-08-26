@@ -10,6 +10,16 @@ Generated release notes for tagged versions are also published on the
 
 ## [Unreleased]
 
+### Added
+
+- Markdown previews now render `mermaid` fenced code blocks as responsive diagrams,
+  with copyable source and a readable fallback when the renderer is unavailable.
+
+### Fixed
+
+- Wide Markdown tables now retain table semantics while scrolling horizontally on
+  narrow screens.
+
 ## [2.1.1] - 2026-05-02
 
 ### Fixed

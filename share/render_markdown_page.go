@@ -27,6 +27,10 @@ func RenderMarkdownPreviewPage(
 	nav := renderBreadcrumbHTML(breadcrumbs, title)
 	actions := renderActionsHTML(rawURL, canCopyContents(PreviewMarkdown))
 	documentTitle, displayTitle, summary, metadata, tags, fields := buildMarkdownPreviewSections(title, meta)
+	mermaidScript := template.HTML("")
+	if strings.Contains(rendered, `class="mermaid-block`) {
+		mermaidScript = template.HTML(markdownMermaidScriptTag)
+	}
 
 	data := struct {
 		DocumentTitle string
@@ -35,6 +39,7 @@ func RenderMarkdownPreviewPage(
 		Nav           template.HTML
 		Actions       template.HTML
 		ActionScript  template.HTML
+		MermaidScript template.HTML
 		Meta          []MarkdownPreviewField
 		Tags          []MarkdownPreviewTag
 		Fields        []MarkdownPreviewField
@@ -46,6 +51,7 @@ func RenderMarkdownPreviewPage(
 		Nav:           template.HTML(nav),
 		Actions:       template.HTML(actions),
 		ActionScript:  template.HTML(previewActionScriptTag),
+		MermaidScript: mermaidScript,
 		Meta:          metadata,
 		Tags:          tags,
 		Fields:        fields,
@@ -268,6 +274,69 @@ func firstNonNil(values ...any) any {
 	}
 	return nil
 }
+
+const markdownMermaidScriptTag = `<script defer src="https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js" integrity="sha384-EOXBFmc3gx5mb+vn0vPvvGqACToJD24hhacX5Yx+8NUUQrHIle/Qi5Bg9o3zKwW2" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+const ferryMermaidBlocks = Array.from(document.querySelectorAll(".mermaid-block"))
+
+function ferrySetMermaidError(block) {
+	block.classList.add("is-error")
+	const target = block.querySelector(".mermaid-diagram")
+	if (target) {
+		target.textContent = "Diagram preview unavailable. The source is shown below."
+	}
+}
+
+async function ferryRenderMermaid() {
+	try {
+		const mermaid = window.mermaid
+		if (!mermaid) {
+			throw new Error("Mermaid runtime unavailable")
+		}
+		const darkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+		mermaid.initialize({
+			startOnLoad: false,
+			securityLevel: "strict",
+			suppressErrorRendering: true,
+			theme: darkMode ? "dark" : "neutral",
+			fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+			flowchart: {htmlLabels: false},
+		})
+
+		for (const [index, block] of ferryMermaidBlocks.entries()) {
+			const code = block.querySelector("code.language-mermaid")
+			const target = block.querySelector(".mermaid-diagram")
+			if (!code || !target) {
+				ferrySetMermaidError(block)
+				continue
+			}
+			try {
+				const result = await mermaid.render("ferry-mermaid-" + index, code.textContent || "")
+				// Mermaid's strict security mode sanitizes the generated SVG before insertion.
+				target.innerHTML = result.svg
+				const svg = target.querySelector("svg")
+				const viewBoxWidth = svg && svg.viewBox ? svg.viewBox.baseVal.width : 0
+				if (svg && viewBoxWidth > target.clientWidth * 1.4) {
+					target.classList.add("is-wide")
+					svg.style.width = Math.min(viewBoxWidth, 1152) + "px"
+				}
+				if (typeof result.bindFunctions === "function") {
+					result.bindFunctions(target)
+				}
+				block.classList.add("is-rendered")
+			} catch (error) {
+				console.error("Failed to render Mermaid diagram", error)
+				ferrySetMermaidError(block)
+			}
+		}
+	} catch (error) {
+		console.error("Failed to load Mermaid", error)
+		ferryMermaidBlocks.forEach(ferrySetMermaidError)
+	}
+}
+
+document.addEventListener("DOMContentLoaded", ferryRenderMermaid, {once: true})
+</script>`
 
 var markdownPreviewTemplate = template.Must(template.New("markdown-preview").Parse(`<!doctype html>
 <html lang="en">
@@ -586,6 +655,67 @@ a:hover { text-decoration: underline; }
   line-height: 1.55;
 }
 
+.markdown-body .mermaid-block {
+  position: relative;
+  max-width: 100%;
+  margin: 0 0 1rem;
+  overflow: hidden;
+  border: 1px solid var(--preview-border);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--preview-canvas) 92%, var(--preview-bg));
+}
+
+.markdown-body .mermaid-source {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.markdown-body .mermaid-diagram {
+  display: none;
+  max-width: 100%;
+  padding: 1.25rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.markdown-body .mermaid-block.is-rendered > .mermaid-source {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.markdown-body .mermaid-block.is-rendered > .mermaid-diagram,
+.markdown-body .mermaid-block.is-error > .mermaid-diagram {
+  display: block;
+}
+
+.markdown-body .mermaid-block.is-error > .mermaid-diagram {
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--preview-border);
+  color: var(--preview-text-muted);
+  font-size: 0.85rem;
+}
+
+.markdown-body .mermaid-diagram svg {
+  display: block;
+  width: auto;
+  max-width: 100% !important;
+  height: auto;
+  margin: 0 auto;
+}
+
+.markdown-body .mermaid-diagram.is-wide svg {
+  max-width: none !important;
+  margin-left: 0;
+  margin-right: 0;
+}
+
 .markdown-body blockquote {
   margin-left: 0;
   padding: 0 1em;
@@ -851,5 +981,6 @@ a:hover { text-decoration: underline; }
   </div>
 </main>
 {{ .ActionScript }}
+{{ .MermaidScript }}
 </body>
 </html>`))

@@ -274,6 +274,65 @@ func TestRenderMarkdownDocumentDecoratesSupportedCopyBlocks(t *testing.T) {
 	}
 }
 
+func TestRenderMarkdownDocumentDecoratesMermaidBlocksForRendering(t *testing.T) {
+	t.Parallel()
+
+	rendered, _, err := RenderMarkdownDocument([]byte("```mermaid\nstateDiagram-v2\n  [*] --> ready\n```\n"))
+	if err != nil {
+		t.Fatalf("RenderMarkdownDocument: %v", err)
+	}
+
+	for _, needle := range []string{
+		`class="mermaid-block copyable-block copyable-block-code"`,
+		`class="mermaid-source"`,
+		`class="language-mermaid"`,
+		`class="mermaid-diagram"`,
+		`data-copy-kind="code"`,
+		`data-copy-label="Copy diagram source"`,
+		`stateDiagram-v2`,
+	} {
+		if !strings.Contains(rendered, needle) {
+			t.Fatalf("expected rendered Mermaid block to contain %q, got %q", needle, rendered)
+		}
+	}
+	if strings.Count(rendered, `data-copy-kind="code"`) != 1 {
+		t.Fatalf("expected exactly one copy button for Mermaid source, got %q", rendered)
+	}
+
+	page, err := RenderMarkdownPreviewPage("diagram.md", rendered, "/raw/diagram.md", nil, nil)
+	if err != nil {
+		t.Fatalf("RenderMarkdownPreviewPage: %v", err)
+	}
+	for _, needle := range []string{
+		`<script defer src="https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js"`,
+		`integrity="sha384-EOXBFmc3gx5mb+vn0vPvvGqACToJD24hhacX5Yx+8NUUQrHIle/Qi5Bg9o3zKwW2"`,
+		`referrerpolicy="no-referrer"`,
+		`document.addEventListener("DOMContentLoaded", ferryRenderMermaid, {once: true})`,
+		`securityLevel: "strict"`,
+		`document.querySelectorAll(".mermaid-block")`,
+		`.mermaid-block.is-rendered > .mermaid-source`,
+		`.mermaid-diagram svg`,
+		`.mermaid-diagram.is-wide svg`,
+		`viewBoxWidth > target.clientWidth * 1.4`,
+	} {
+		if !strings.Contains(page, needle) {
+			t.Fatalf("expected Mermaid preview page to contain %q, got %q", needle, page)
+		}
+	}
+}
+
+func TestRenderMarkdownPreviewPageOmitsMermaidRuntimeWithoutDiagram(t *testing.T) {
+	t.Parallel()
+
+	page, err := RenderMarkdownPreviewPage("notes.md", "<p>Plain notes</p>", "/raw/notes.md", nil, nil)
+	if err != nil {
+		t.Fatalf("RenderMarkdownPreviewPage: %v", err)
+	}
+	if strings.Contains(page, "cdn.jsdelivr.net/npm/mermaid") {
+		t.Fatalf("expected ordinary markdown to omit the Mermaid runtime, got %q", page)
+	}
+}
+
 func TestRenderMarkdownDocumentDecoratesGitHubAlerts(t *testing.T) {
 	t.Parallel()
 
@@ -699,6 +758,10 @@ func TestHandlePreviewSkipsMarkdownTableCopyButtons(t *testing.T) {
 	}
 	if strings.Contains(body, `data-copy-kind="table"`) {
 		t.Fatalf("expected markdown table to omit block copy button, got %q", body)
+	}
+	if strings.Contains(body, `.markdown-body table {
+  display: block;`) {
+		t.Fatalf("expected table semantics to remain intact, got %q", body)
 	}
 }
 

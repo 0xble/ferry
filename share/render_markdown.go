@@ -29,6 +29,7 @@ type MarkdownDirectoryShareAnalysis struct {
 var (
 	markdownCheckboxAttrPattern = regexp.MustCompile(`(?i)^(|checked|disabled)$`)
 	markdownCheckboxTypePattern = regexp.MustCompile(`(?i)^checkbox$`)
+	markdownMermaidClassPattern = regexp.MustCompile(`^language-mermaid$`)
 	markdownFrontmatterFence    = []byte("---")
 	markdownDirectiveTagPattern = regexp.MustCompile(`^</?([a-z][a-z0-9_:-]*)(?:\s+[^<>]*)?>$`)
 	markdownAlertMarkerPattern  = regexp.MustCompile(`(?i)^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*(?:\r?\n)?[ \t]*`)
@@ -240,6 +241,7 @@ func buildMarkdownSanitizer() *bluemonday.Policy {
 	p.AllowElements("input")
 	p.AllowAttrs("type").Matching(markdownCheckboxTypePattern).OnElements("input")
 	p.AllowAttrs("checked", "disabled").Matching(markdownCheckboxAttrPattern).OnElements("input")
+	p.AllowAttrs("class").Matching(markdownMermaidClassPattern).OnElements("code")
 	p.AllowAttrs("target").Matching(bluemonday.Paragraph).OnElements("a")
 	p.RequireNoFollowOnLinks(true)
 	p.RequireNoReferrerOnLinks(true)
@@ -333,6 +335,9 @@ func decorateMarkdownHTML(rendered string) (string, error) {
 	})
 
 	doc.Find("pre").Each(func(_ int, sel *goquery.Selection) {
+		if decorateMarkdownMermaidBlock(sel) {
+			return
+		}
 		decorateMarkdownCopyBlock(sel, "code", "Copy code block")
 	})
 	doc.Find("blockquote").Each(func(_ int, sel *goquery.Selection) {
@@ -351,6 +356,23 @@ func decorateMarkdownHTML(rendered string) (string, error) {
 		return "", err
 	}
 	return html, nil
+}
+
+func decorateMarkdownMermaidBlock(sel *goquery.Selection) bool {
+	if sel == nil {
+		return false
+	}
+	code := sel.ChildrenFiltered("code.language-mermaid").First()
+	if code.Length() == 0 {
+		return false
+	}
+
+	sel.WrapHtml(`<div class="mermaid-block copyable-block copyable-block-code"></div>`)
+	addMarkdownHTMLClass(sel, "mermaid-source")
+	wrapper := sel.Parent()
+	wrapper.PrependHtml(renderMarkdownCopyButtonHTML("code", "Copy diagram source"))
+	wrapper.AppendHtml(`<div class="mermaid-diagram" role="img" aria-label="Mermaid diagram"></div>`)
+	return true
 }
 
 func decorateMarkdownAlert(sel *goquery.Selection) {
