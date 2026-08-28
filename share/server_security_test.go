@@ -209,7 +209,7 @@ func TestFailedAuthLimiterExpiresEntries(t *testing.T) {
 	}
 }
 
-func TestHandlePreviewDisablesHTMLExecution(t *testing.T) {
+func TestHandlePreviewEmbedsHTMLInScriptOnlySandbox(t *testing.T) {
 	t.Parallel()
 
 	d := newTestDaemon(t)
@@ -230,11 +230,85 @@ func TestHandlePreviewDisablesHTMLExecution(t *testing.T) {
 		t.Fatalf("handlePreview status = %d, want %d", res.Code, http.StatusOK)
 	}
 	body := res.Body.String()
-	if !strings.Contains(body, "HTML preview is disabled for safety.") {
-		t.Fatalf("expected HTML preview warning, got %q", body)
+	if !strings.Contains(body, `sandbox="allow-scripts"`) {
+		t.Fatalf("expected script-only sandboxed iframe, got %q", body)
+	}
+	if strings.Contains(body, "allow-same-origin") {
+		t.Fatalf("HTML iframe must not retain the Ferry origin: %q", body)
+	}
+	if !strings.Contains(body, "/h/"+share.ID+"/index.html?t="+token) {
+		t.Fatalf("expected isolated HTML artifact URL, got %q", body)
 	}
 	if strings.Contains(body, `alert("owned")`) {
-		t.Fatalf("unexpected raw html in preview response: %q", body)
+		t.Fatalf("unexpected raw HTML in preview shell: %q", body)
+	}
+}
+
+func TestHTMLArtifactRouteRunsInlineScriptsAfterTokenStrippingRedirect(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDaemon(t)
+	root := t.TempDir()
+	source := `<!doctype html><button id="demo">Before</button><script>document.querySelector('#demo').textContent='After'</script>`
+	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte(source), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	share := createDirectoryShare(t, d, root)
+	token := ShareToken(d.secret, share.ID, d.cfg.TokenBytes)
+	initialReq := httptest.NewRequest(http.MethodGet, "/h/"+share.ID+"/index.html?t="+token, nil)
+	initialRes := httptest.NewRecorder()
+
+	d.publicMux().ServeHTTP(initialRes, initialReq)
+
+	if initialRes.Code != http.StatusSeeOther {
+		t.Fatalf("initial HTML artifact status = %d, want %d", initialRes.Code, http.StatusSeeOther)
+	}
+	if got := initialRes.Header().Get("Location"); got != "/h/"+share.ID+"/index.html" {
+		t.Fatalf("redirect Location = %q, want token-free artifact URL", got)
+	}
+	cookies := initialRes.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("Set-Cookie count = %d, want 1", len(cookies))
+	}
+	cookie := cookies[0]
+	if !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode {
+		t.Fatalf("artifact cookie must be HttpOnly and SameSite=Strict: %#v", cookie)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, initialRes.Header().Get("Location"), nil)
+	req.AddCookie(cookie)
+	res := httptest.NewRecorder()
+	d.publicMux().ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("HTML artifact status = %d, want %d", res.Code, http.StatusOK)
+	}
+	if got := res.Header().Get("Content-Type"); !strings.HasPrefix(got, "text/html") {
+		t.Fatalf("Content-Type = %q, want text/html", got)
+	}
+	if got := res.Header().Get("X-Frame-Options"); got != "SAMEORIGIN" {
+		t.Fatalf("X-Frame-Options = %q, want SAMEORIGIN", got)
+	}
+	csp := res.Header().Get("Content-Security-Policy")
+	for _, want := range []string{
+		"default-src 'none'",
+		"script-src 'unsafe-inline'",
+		"style-src 'unsafe-inline'",
+		"connect-src 'none'",
+		"frame-ancestors 'self'",
+		"form-action 'none'",
+		"sandbox allow-scripts",
+	} {
+		if !strings.Contains(csp, want) {
+			t.Fatalf("HTML artifact CSP missing %q\ngot: %s", want, csp)
+		}
+	}
+	if strings.Contains(csp, "allow-same-origin") {
+		t.Fatalf("HTML artifact CSP must not retain the Ferry origin: %s", csp)
+	}
+	if body := res.Body.String(); body != source {
+		t.Fatalf("HTML artifact body = %q, want %q", body, source)
 	}
 }
 

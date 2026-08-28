@@ -30,7 +30,10 @@ tokens.
 
 - Share files and directories as live or snapshot links
 - Rich previews: markdown (GFM), code (highlight.js), CSV (Tabulator),
-  PDF (pdf.js), images, audio, video
+  PDF, images, audio, video, and interactive self-contained HTML
+- Sandboxed HTML artifacts execute inline CSS and JavaScript while blocking
+  fetch/XHR, external runtime subresources, forms, nested frames, storage, parent/top
+  navigation, and Ferry-origin access
 - HMAC-SHA256 token auth per share
 - Directory listing with breadcrumb navigation
 - Automatic share expiry and garbage collection

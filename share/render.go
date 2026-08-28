@@ -442,6 +442,34 @@ func renderBreadcrumbHTML(crumbs []Breadcrumb, current string) string {
 	return b.String()
 }
 
+func RenderHTMLPreviewPage(baseName string, artifactURL string, rawURL string, breadcrumbs []Breadcrumb) string {
+	title := template.HTMLEscapeString(baseName)
+	nav := renderBreadcrumbHTML(breadcrumbs, baseName)
+	if nav == "" {
+		nav = `<span class="filename">` + title + `</span>`
+	}
+	actions := renderActionsHTML(rawURL, true)
+	artifact := template.HTMLEscapeString(artifactURL)
+
+	return fmt.Sprintf(`<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light dark" />
+<title>%s</title>
+<style>`+previewThemeCSS+previewBaseCSS+`
+html,body{height:100%%;overflow:hidden}
+body{display:flex}
+.artifact-shell{display:grid;grid-template-rows:auto minmax(0,1fr);width:100%%;height:100%%;background:var(--preview-canvas)}
+.artifact-shell .box-header{border:0;border-bottom:1px solid var(--preview-border);border-radius:0}
+.artifact-frame{display:block;width:100%%;height:100%%;border:0;background:#fff}
+</style></head><body>
+<main class="artifact-shell">
+<header class="box-header">%s%s</header>
+<iframe class="artifact-frame" src="%s" sandbox="allow-scripts" referrerpolicy="no-referrer" title="%s"></iframe>
+</main>%s</body></html>`, title, nav, actions, artifact, title, previewActionScriptTag)
+}
+
 func RenderPreviewPage(baseName string, kind PreviewKind, rawURL string, breadcrumbs []Breadcrumb) string {
 	title := template.HTMLEscapeString(baseName)
 	raw := template.JSEscapeString(rawURL)
@@ -719,24 +747,6 @@ try {
 </div>
 <div class="media"><video controls preload="metadata" src="%s"></video></div>
 </div></div>%s</body></html>`, title, nav, actions, rawHTML, actionScript)
-	case PreviewHTML:
-		return fmt.Sprintf(`<!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="color-scheme" content="light dark" />
-<title>%s</title>
-<style>`+previewThemeCSS+previewBaseCSS+`
-.message{padding:48px 24px;text-align:center;color:var(--preview-text-muted)}
-.message p{margin:0 0 16px}
-</style></head><body>
-<div class="container">
-<div class="box">
-<div class="box-header">%s%s</div>
-<div class="message">
-<p>HTML preview is disabled for safety.</p>
-<p>Use the download action if you trust this file.</p>
-</div></div></div>%s</body></html>`, title, nav, actions, actionScript)
 	default:
 		return fmt.Sprintf(`<!doctype html>
 <html lang="en"><head>

@@ -73,7 +73,8 @@ func (d *Daemon) handlePreview(w http.ResponseWriter, r *http.Request) {
 	}
 	if kind == PreviewHTML {
 		rawURL := d.buildRawPath(share.ID, rel, token)
-		html := RenderPreviewPage(baseName, kind, rawURL, breadcrumbs)
+		artifactURL := d.buildHTMLPath(share.ID, rel, token)
+		html := RenderHTMLPreviewPage(baseName, artifactURL, rawURL, breadcrumbs)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write([]byte(html))
 		_ = d.store.TouchLastServed(share.ID, time.Now().UTC())
@@ -136,30 +137,115 @@ func (d *Daemon) handleRaw(w http.ResponseWriter, r *http.Request) {
 	_ = d.store.TouchLastServed(share.ID, time.Now().UTC())
 }
 
+func (d *Daemon) handleHTMLArtifact(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+
+	id, rel, ok := splitSharePath(r.URL.Path, "/h/")
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	token := strings.TrimSpace(r.URL.Query().Get("t"))
+	if token != "" {
+		share, ok := d.authorizeShareToken(w, id, token)
+		if !ok {
+			return
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:     htmlArtifactCookieName(share.ID),
+			Value:    token,
+			Path:     d.htmlArtifactCookiePath(share.ID),
+			Expires:  share.ExpiresAt,
+			HttpOnly: true,
+			Secure:   requestIsHTTPS(r) || strings.HasPrefix(d.ExternalBaseURL(), "https://"),
+			SameSite: http.SameSiteStrictMode,
+		})
+		http.Redirect(w, r, d.buildHTMLPath(share.ID, rel, ""), http.StatusSeeOther)
+		return
+	}
+
+	cookie, err := r.Cookie(htmlArtifactCookieName(id))
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized", "invalid token")
+		return
+	}
+	share, ok := d.authorizeShareToken(w, id, cookie.Value)
+	if !ok {
+		return
+	}
+
+	targetPath, info, err := d.resolveTarget(share, rel)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusForbidden, "path_error", err.Error())
+		return
+	}
+	if info.IsDir() || ClassifyPreviewKind(filepath.Base(targetPath)) != PreviewHTML {
+		writeError(w, http.StatusBadRequest, "invalid_target", "HTML artifact route requires an HTML file")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	file, err := os.Open(targetPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "read_error", err.Error())
+		return
+	}
+	defer func() { _ = file.Close() }()
+	http.ServeContent(w, r, filepath.Base(targetPath), info.ModTime(), file)
+	_ = d.store.TouchLastServed(share.ID, time.Now().UTC())
+}
+
 func (d *Daemon) authorizeShare(w http.ResponseWriter, r *http.Request, shareID string) (Share, string, bool) {
+	token := strings.TrimSpace(r.URL.Query().Get("t"))
+	share, ok := d.authorizeShareToken(w, shareID, token)
+	if !ok {
+		return Share{}, "", false
+	}
+	return share, token, true
+}
+
+func (d *Daemon) authorizeShareToken(w http.ResponseWriter, shareID string, token string) (Share, bool) {
 	share, err := d.store.GetShare(shareID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			writeError(w, http.StatusNotFound, "not_found", "share not found")
-			return Share{}, "", false
+			return Share{}, false
 		}
 		writeError(w, http.StatusInternalServerError, "store_error", err.Error())
-		return Share{}, "", false
+		return Share{}, false
 	}
 
 	now := time.Now().UTC()
 	if !share.IsActive(now) {
 		writeError(w, http.StatusGone, "expired", "share is expired or revoked")
-		return Share{}, "", false
+		return Share{}, false
 	}
 
-	token := strings.TrimSpace(r.URL.Query().Get("t"))
 	if token == "" || !ValidateShareToken(d.secret, share.ID, token, d.cfg.TokenBytes) {
 		writeError(w, http.StatusUnauthorized, "unauthorized", "invalid token")
-		return Share{}, "", false
+		return Share{}, false
 	}
 
-	return share, token, true
+	return share, true
+}
+
+func htmlArtifactCookieName(shareID string) string {
+	return "ferry_html_" + shareID
+}
+
+func requestIsHTTPS(r *http.Request) bool {
+	if r.TLS != nil {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https")
 }
 
 func (d *Daemon) resolveTarget(share Share, rel string) (string, os.FileInfo, error) {
@@ -326,4 +412,33 @@ func (d *Daemon) buildRawPath(shareID string, rel string, token string) string {
 		return path
 	}
 	return baseURL + path
+}
+
+func (d *Daemon) buildHTMLPath(shareID string, rel string, token string) string {
+	escapedRel := escapeRel(rel)
+	baseURL := strings.TrimRight(d.ExternalBaseURL(), "/")
+	query := ""
+	if token != "" {
+		query = "?t=" + url.QueryEscape(token)
+	}
+	if escapedRel == "" {
+		path := fmt.Sprintf("/h/%s%s", shareID, query)
+		if baseURL == "" {
+			return path
+		}
+		return baseURL + path
+	}
+	path := fmt.Sprintf("/h/%s/%s%s", shareID, escapedRel, query)
+	if baseURL == "" {
+		return path
+	}
+	return baseURL + path
+}
+
+func (d *Daemon) htmlArtifactCookiePath(shareID string) string {
+	basePath := ""
+	if parsed, err := url.Parse(d.ExternalBaseURL()); err == nil {
+		basePath = strings.TrimRight(parsed.EscapedPath(), "/")
+	}
+	return basePath + "/h/" + shareID
 }

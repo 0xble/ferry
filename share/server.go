@@ -216,6 +216,7 @@ func (d *Daemon) publicMux() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", d.handlePublicHealth)
 	mux.HandleFunc("/s/", d.handlePreview)
+	mux.HandleFunc("/h/", d.handleHTMLArtifact)
 	mux.HandleFunc("/r/", d.handleRaw)
 	return securityHeaders(failedAuthRateLimit(d.failedAuth, mux))
 }
@@ -233,6 +234,7 @@ const previewCSP = "default-src 'none'; " +
 	"media-src 'self'; " +
 	"font-src 'self' data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
 	"connect-src 'self'; " +
+	"frame-src 'self'; " +
 	"worker-src 'self' blob: https://cdn.jsdelivr.net; " +
 	"frame-ancestors 'none'; " +
 	"base-uri 'none'; " +
@@ -243,6 +245,26 @@ const previewCSP = "default-src 'none'; " +
 // so this is defense-in-depth: even if a browser ignored the disposition
 // header, the sandbox plus default-src 'none' keeps the document inert.
 const rawCSP = "default-src 'none'; sandbox"
+
+// htmlArtifactCSP permits self-contained HTML artifacts to execute their own
+// inline CSS and JavaScript while denying fetch/XHR, external runtime subresources,
+// forms, nested frames, plugins, parent/top navigation, and access to Ferry's
+// origin. The sandbox intentionally omits allow-same-origin so artifact scripts
+// run under an opaque origin. An artifact may still navigate its own sandboxed
+// frame, but the token is stripped first and referrers are suppressed.
+const htmlArtifactCSP = "default-src 'none'; " +
+	"script-src 'unsafe-inline'; " +
+	"style-src 'unsafe-inline'; " +
+	"img-src data: blob:; " +
+	"media-src data: blob:; " +
+	"font-src data:; " +
+	"connect-src 'none'; " +
+	"object-src 'none'; " +
+	"frame-src 'none'; " +
+	"frame-ancestors 'self'; " +
+	"base-uri 'none'; " +
+	"form-action 'none'; " +
+	"sandbox allow-scripts"
 
 // securityHeaders wraps the public handler with response headers that
 // prevent indexing, referrer leakage, MIME-type sniffing, and frame
@@ -260,6 +282,9 @@ func securityHeaders(next http.Handler) http.Handler {
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/r/"):
 			h.Set("Content-Security-Policy", rawCSP)
+		case strings.HasPrefix(r.URL.Path, "/h/"):
+			h.Set("Content-Security-Policy", htmlArtifactCSP)
+			h.Set("X-Frame-Options", "SAMEORIGIN")
 		case strings.HasPrefix(r.URL.Path, "/s/"):
 			h.Set("Content-Security-Policy", previewCSP)
 		}

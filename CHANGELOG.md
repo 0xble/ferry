@@ -14,6 +14,10 @@ Generated release notes for tagged versions are also published on the
 
 - Markdown previews now render `mermaid` fenced code blocks as responsive diagrams,
   with copyable source and a readable fallback when the renderer is unavailable.
+- Self-contained HTML artifacts now render interactively in a script-only sandbox.
+  Inline CSS and JavaScript work, while CSP blocks fetch/XHR, external runtime subresources,
+  forms, nested frames, storage, parent/top navigation, and access to Ferry's
+  origin. The inner frame receives a token-free URL before artifact code runs.
 
 ### Fixed
 
