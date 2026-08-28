@@ -35,33 +35,6 @@ func TestBuildRawPathFallsBackToDaemonRoot(t *testing.T) {
 	}
 }
 
-func TestBuildHTMLPathUsesExternalBaseURL(t *testing.T) {
-	t.Parallel()
-
-	d := &Daemon{
-		externalBase: "https://host.example.ts.net/share",
-	}
-
-	got := d.buildHTMLPath("share123", "demos/index.html", "token123")
-	want := "https://host.example.ts.net/share/h/share123/demos/index.html?t=token123"
-	if got != want {
-		t.Fatalf("buildHTMLPath() = %q, want %q", got, want)
-	}
-}
-
-func TestHTMLArtifactRedirectAndCookiePreserveExternalBasePath(t *testing.T) {
-	t.Parallel()
-
-	d := &Daemon{externalBase: "https://host.example.ts.net/share"}
-
-	if got, want := d.buildHTMLPath("share123", "demos/index.html", ""), "https://host.example.ts.net/share/h/share123/demos/index.html"; got != want {
-		t.Fatalf("token-free buildHTMLPath() = %q, want %q", got, want)
-	}
-	if got, want := d.htmlArtifactCookiePath("share123"), "/share/h/share123"; got != want {
-		t.Fatalf("htmlArtifactCookiePath() = %q, want %q", got, want)
-	}
-}
-
 func TestBuildPreviewPathMarksPDFNativeViewerLinks(t *testing.T) {
 	t.Parallel()
 

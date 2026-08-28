@@ -236,8 +236,10 @@ func TestHandlePreviewEmbedsHTMLInScriptOnlySandbox(t *testing.T) {
 	if strings.Contains(body, "allow-same-origin") {
 		t.Fatalf("HTML iframe must not retain the Ferry origin: %q", body)
 	}
-	if !strings.Contains(body, "/h/"+share.ID+"/index.html?t="+token) {
-		t.Fatalf("expected isolated HTML artifact URL, got %q", body)
+	for _, want := range []string{`const marker = "/s/"`, `+ "/h/" +`, `frame.src = artifactURL.pathname + artifactURL.search`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("expected proxy-prefix-safe HTML artifact routing marker %q, got %q", want, body)
+		}
 	}
 	if strings.Contains(body, `alert("owned")`) {
 		t.Fatalf("unexpected raw HTML in preview shell: %q", body)
@@ -264,7 +266,7 @@ func TestHTMLArtifactRouteRunsInlineScriptsAfterTokenStrippingRedirect(t *testin
 	if initialRes.Code != http.StatusSeeOther {
 		t.Fatalf("initial HTML artifact status = %d, want %d", initialRes.Code, http.StatusSeeOther)
 	}
-	if got := initialRes.Header().Get("Location"); got != "/h/"+share.ID+"/index.html" {
+	if got := initialRes.Header().Get("Location"); got != "index.html" {
 		t.Fatalf("redirect Location = %q, want token-free artifact URL", got)
 	}
 	cookies := initialRes.Result().Cookies()
@@ -275,8 +277,11 @@ func TestHTMLArtifactRouteRunsInlineScriptsAfterTokenStrippingRedirect(t *testin
 	if !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode {
 		t.Fatalf("artifact cookie must be HttpOnly and SameSite=Strict: %#v", cookie)
 	}
+	if cookie.Path != "/" {
+		t.Fatalf("artifact cookie Path = %q, want / for proxy-prefix compatibility", cookie.Path)
+	}
 
-	req := httptest.NewRequest(http.MethodGet, initialRes.Header().Get("Location"), nil)
+	req := httptest.NewRequest(http.MethodGet, "/h/"+share.ID+"/index.html", nil)
 	req.AddCookie(cookie)
 	res := httptest.NewRecorder()
 	d.publicMux().ServeHTTP(res, req)

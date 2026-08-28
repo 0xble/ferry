@@ -73,8 +73,7 @@ func (d *Daemon) handlePreview(w http.ResponseWriter, r *http.Request) {
 	}
 	if kind == PreviewHTML {
 		rawURL := d.buildRawPath(share.ID, rel, token)
-		artifactURL := d.buildHTMLPath(share.ID, rel, token)
-		html := RenderHTMLPreviewPage(baseName, artifactURL, rawURL, breadcrumbs)
+		html := RenderHTMLPreviewPage(baseName, rawURL, breadcrumbs)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write([]byte(html))
 		_ = d.store.TouchLastServed(share.ID, time.Now().UTC())
@@ -158,13 +157,16 @@ func (d *Daemon) handleHTMLArtifact(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{
 			Name:     htmlArtifactCookieName(share.ID),
 			Value:    token,
-			Path:     d.htmlArtifactCookiePath(share.ID),
+			Path:     "/",
 			Expires:  share.ExpiresAt,
 			HttpOnly: true,
-			Secure:   requestIsHTTPS(r) || strings.HasPrefix(d.ExternalBaseURL(), "https://"),
+			Secure:   requestIsHTTPS(r),
 			SameSite: http.SameSiteStrictMode,
 		})
-		http.Redirect(w, r, d.buildHTMLPath(share.ID, rel, ""), http.StatusSeeOther)
+		// A relative Location preserves any reverse-proxy mount prefix that the
+		// daemon cannot see after path stripping.
+		w.Header().Set("Location", path.Base(r.URL.Path))
+		w.WriteHeader(http.StatusSeeOther)
 		return
 	}
 
@@ -412,33 +414,4 @@ func (d *Daemon) buildRawPath(shareID string, rel string, token string) string {
 		return path
 	}
 	return baseURL + path
-}
-
-func (d *Daemon) buildHTMLPath(shareID string, rel string, token string) string {
-	escapedRel := escapeRel(rel)
-	baseURL := strings.TrimRight(d.ExternalBaseURL(), "/")
-	query := ""
-	if token != "" {
-		query = "?t=" + url.QueryEscape(token)
-	}
-	if escapedRel == "" {
-		path := fmt.Sprintf("/h/%s%s", shareID, query)
-		if baseURL == "" {
-			return path
-		}
-		return baseURL + path
-	}
-	path := fmt.Sprintf("/h/%s/%s%s", shareID, escapedRel, query)
-	if baseURL == "" {
-		return path
-	}
-	return baseURL + path
-}
-
-func (d *Daemon) htmlArtifactCookiePath(shareID string) string {
-	basePath := ""
-	if parsed, err := url.Parse(d.ExternalBaseURL()); err == nil {
-		basePath = strings.TrimRight(parsed.EscapedPath(), "/")
-	}
-	return basePath + "/h/" + shareID
 }

@@ -442,15 +442,13 @@ func renderBreadcrumbHTML(crumbs []Breadcrumb, current string) string {
 	return b.String()
 }
 
-func RenderHTMLPreviewPage(baseName string, artifactURL string, rawURL string, breadcrumbs []Breadcrumb) string {
+func RenderHTMLPreviewPage(baseName string, rawURL string, breadcrumbs []Breadcrumb) string {
 	title := template.HTMLEscapeString(baseName)
 	nav := renderBreadcrumbHTML(breadcrumbs, baseName)
 	if nav == "" {
 		nav = `<span class="filename">` + title + `</span>`
 	}
 	actions := renderActionsHTML(rawURL, true)
-	artifact := template.HTMLEscapeString(artifactURL)
-
 	return fmt.Sprintf(`<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8" />
@@ -466,8 +464,21 @@ body{display:flex}
 </style></head><body>
 <main class="artifact-shell">
 <header class="box-header">%s%s</header>
-<iframe class="artifact-frame" src="%s" sandbox="allow-scripts" referrerpolicy="no-referrer" title="%s"></iframe>
-</main>%s</body></html>`, title, nav, actions, artifact, title, previewActionScriptTag)
+<iframe class="artifact-frame" sandbox="allow-scripts" referrerpolicy="no-referrer" title="%s"></iframe>
+</main>
+<script>
+(() => {
+ const frame = document.querySelector(".artifact-frame")
+ const artifactURL = new URL(window.location.href)
+ const marker = "/s/"
+ const markerIndex = artifactURL.pathname.lastIndexOf(marker)
+ if (markerIndex < 0) return
+ artifactURL.pathname = artifactURL.pathname.slice(0, markerIndex) + "/h/" + artifactURL.pathname.slice(markerIndex + marker.length)
+ artifactURL.searchParams.delete("pv")
+ artifactURL.hash = ""
+ frame.src = artifactURL.pathname + artifactURL.search
+})()
+</script>%s</body></html>`, title, nav, actions, title, previewActionScriptTag)
 }
 
 func RenderPreviewPage(baseName string, kind PreviewKind, rawURL string, breadcrumbs []Breadcrumb) string {
