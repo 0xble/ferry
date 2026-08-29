@@ -456,11 +456,11 @@ func RenderHTMLPreviewPage(baseName string, rawURL string, breadcrumbs []Breadcr
 <meta name="color-scheme" content="light dark" />
 <title>%s</title>
 <style>`+previewThemeCSS+previewBaseCSS+`
-html,body{height:100%%;overflow:hidden}
+html,body{width:100%%;max-width:100%%;height:100%%;overflow:hidden;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y pinch-zoom}
 body{display:flex}
-.artifact-shell{display:grid;grid-template-rows:auto minmax(0,1fr);width:100%%;height:100%%;background:var(--preview-canvas)}
+.artifact-shell{display:grid;grid-template-rows:auto minmax(0,1fr);width:100%%;max-width:100%%;height:100%%;overflow:hidden;background:var(--preview-canvas)}
 .artifact-shell .box-header{border:0;border-bottom:1px solid var(--preview-border);border-radius:0}
-.artifact-frame{display:block;width:100%%;height:100%%;border:0;background:#fff}
+.artifact-frame{display:block;width:100%%;max-width:100%%;height:100%%;border:0;background:#fff;overscroll-behavior-x:none;touch-action:pan-y pinch-zoom}
 </style></head><body>
 <main class="artifact-shell">
 <header class="box-header">%s%s</header>

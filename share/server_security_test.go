@@ -1,6 +1,7 @@
 package share
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -236,7 +237,14 @@ func TestHandlePreviewEmbedsHTMLInScriptOnlySandbox(t *testing.T) {
 	if strings.Contains(body, "allow-same-origin") {
 		t.Fatalf("HTML iframe must not retain the Ferry origin: %q", body)
 	}
-	for _, want := range []string{`const marker = "/s/"`, `+ "/h/" +`, `frame.src = artifactURL.pathname + artifactURL.search`} {
+	for _, want := range []string{
+		`const marker = "/s/"`,
+		`+ "/h/" +`,
+		`frame.src = artifactURL.pathname + artifactURL.search`,
+		`overflow-x:hidden`,
+		`overscroll-behavior-x:none`,
+		`touch-action:pan-y pinch-zoom`,
+	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("expected proxy-prefix-safe HTML artifact routing marker %q, got %q", want, body)
 		}
@@ -312,8 +320,37 @@ func TestHTMLArtifactRouteRunsInlineScriptsAfterTokenStrippingRedirect(t *testin
 	if strings.Contains(csp, "allow-same-origin") {
 		t.Fatalf("HTML artifact CSP must not retain the Ferry origin: %s", csp)
 	}
-	if body := res.Body.String(); body != source {
-		t.Fatalf("HTML artifact body = %q, want %q", body, source)
+	body := res.Body.String()
+	if got := strings.Replace(body, htmlViewportContainmentMarkup, "", 1); got != source {
+		t.Fatalf("HTML artifact source changed after removing viewport guard: got %q, want %q", got, source)
+	}
+	for _, want := range []string{
+		`id="ferry-viewport-containment"`,
+		`id="ferry-viewport-containment-script"`,
+		`new MutationObserver(apply)`,
+		`@layer ferry-viewport`,
+		`overflow-x:hidden!important`,
+		`overflow-x:clip!important`,
+		`overscroll-behavior-x:none!important`,
+		`touch-action:pan-y pinch-zoom!important`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("HTML artifact body missing viewport containment %q, got %q", want, body)
+		}
+	}
+
+	guardStart := strings.Index(body, htmlViewportContainmentMarkup)
+	rangeEnd := guardStart + 31
+	rangeReq := httptest.NewRequest(http.MethodGet, "/h/"+share.ID+"/index.html", nil)
+	rangeReq.AddCookie(cookie)
+	rangeReq.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", guardStart, rangeEnd))
+	rangeRes := httptest.NewRecorder()
+	d.publicMux().ServeHTTP(rangeRes, rangeReq)
+	if rangeRes.Code != http.StatusPartialContent {
+		t.Fatalf("HTML artifact range status = %d, want %d", rangeRes.Code, http.StatusPartialContent)
+	}
+	if got, want := rangeRes.Body.String(), body[guardStart:rangeEnd+1]; got != want {
+		t.Fatalf("HTML artifact range body = %q, want %q", got, want)
 	}
 }
 

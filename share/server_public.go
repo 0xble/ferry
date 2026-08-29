@@ -1,8 +1,11 @@
 package share
 
 import (
+	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -201,8 +204,174 @@ func (d *Daemon) handleHTMLArtifact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = file.Close() }()
-	http.ServeContent(w, r, filepath.Base(targetPath), info.ModTime(), file)
+	currentInfo, err := file.Stat()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "read_error", err.Error())
+		return
+	}
+	artifact, err := newHTMLArtifactReadSeeker(file, currentInfo.Size())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "read_error", err.Error())
+		return
+	}
+	http.ServeContent(w, r, filepath.Base(targetPath), currentInfo.ModTime(), artifact)
 	_ = d.store.TouchLastServed(share.ID, time.Now().UTC())
+}
+
+const htmlViewportContainmentStyle = `<style id="ferry-viewport-containment">html,body{width:100%!important;max-width:100%!important;overflow-x:hidden!important;overflow-x:clip!important;overscroll-behavior-x:none!important;touch-action:pan-y pinch-zoom!important}@layer ferry-viewport{html,body{width:100%!important;max-width:100%!important;overflow-x:hidden!important;overflow-x:clip!important;overscroll-behavior-x:none!important;touch-action:pan-y pinch-zoom!important}}</style>`
+
+const htmlViewportContainmentScript = `<script id="ferry-viewport-containment-script">(()=>{const declarations={width:"100%",maxWidth:"100%",overflowX:CSS.supports("overflow-x","clip")?"clip":"hidden",overscrollBehaviorX:"none",touchAction:"pan-y pinch-zoom"};const apply=()=>{for(const node of [document.documentElement,document.body]){if(!node)continue;for(const [property,value] of Object.entries(declarations)){const cssProperty=property.replace(/[A-Z]/g,letter=>"-"+letter.toLowerCase());if(node.style.getPropertyValue(cssProperty)!==value||node.style.getPropertyPriority(cssProperty)!=="important")node.style.setProperty(cssProperty,value,"important")}}};new MutationObserver(apply).observe(document,{subtree:true,childList:true,attributes:true,attributeFilter:["style"]});apply();addEventListener("DOMContentLoaded",apply,{once:true})})()</script>`
+
+const htmlViewportContainmentMarkup = htmlViewportContainmentStyle + htmlViewportContainmentScript
+
+func newHTMLArtifactReadSeeker(source io.ReaderAt, sourceSize int64) (*io.SectionReader, error) {
+	insertAt, err := htmlViewportGuardOffsetReader(source, sourceSize)
+	if err != nil {
+		return nil, err
+	}
+	reader := &injectedReaderAt{
+		source:     source,
+		sourceSize: sourceSize,
+		insertAt:   insertAt,
+		injection:  []byte(htmlViewportContainmentMarkup),
+	}
+	return io.NewSectionReader(reader, 0, sourceSize+int64(len(reader.injection))), nil
+}
+
+type injectedReaderAt struct {
+	source     io.ReaderAt
+	sourceSize int64
+	insertAt   int64
+	injection  []byte
+}
+
+func (r *injectedReaderAt) ReadAt(p []byte, offset int64) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+	if offset < 0 {
+		return 0, errors.New("negative read offset")
+	}
+	totalSize := r.sourceSize + int64(len(r.injection))
+	if offset >= totalSize {
+		return 0, io.EOF
+	}
+
+	written := 0
+	for len(p) > 0 && offset < totalSize {
+		switch {
+		case offset < r.insertAt:
+			available := min(int64(len(p)), r.insertAt-offset)
+			n, err := r.source.ReadAt(p[:available], offset)
+			offset += int64(n)
+			written += n
+			p = p[n:]
+			if err != nil {
+				return written, err
+			}
+		case offset < r.insertAt+int64(len(r.injection)):
+			injectionOffset := offset - r.insertAt
+			n := copy(p, r.injection[injectionOffset:])
+			offset += int64(n)
+			written += n
+			p = p[n:]
+		default:
+			sourcePosition := offset - int64(len(r.injection))
+			available := min(int64(len(p)), r.sourceSize-sourcePosition)
+			n, err := r.source.ReadAt(p[:available], sourcePosition)
+			offset += int64(n)
+			written += n
+			p = p[n:]
+			if err != nil {
+				return written, err
+			}
+		}
+	}
+	if len(p) > 0 {
+		return written, io.EOF
+	}
+	return written, nil
+}
+
+func htmlViewportGuardOffset(source []byte) int {
+	offset, err := htmlViewportGuardOffsetReader(bytes.NewReader(source), int64(len(source)))
+	if err != nil {
+		return 0
+	}
+	return int(offset)
+}
+
+func htmlViewportGuardOffsetReader(source io.ReaderAt, sourceSize int64) (int64, error) {
+	reader := bufio.NewReader(io.NewSectionReader(source, 0, sourceSize))
+	offset := int64(0)
+	if prefix, _ := reader.Peek(3); bytes.Equal(prefix, []byte{0xef, 0xbb, 0xbf}) {
+		_, _ = reader.Discard(3)
+		offset += 3
+	}
+
+	for {
+		for {
+			prefix, err := reader.Peek(1)
+			if errors.Is(err, io.EOF) {
+				return 0, nil
+			}
+			if err != nil {
+				return 0, err
+			}
+			if !strings.ContainsRune(" 	\r\n\f", rune(prefix[0])) {
+				break
+			}
+			_, _ = reader.Discard(1)
+			offset++
+		}
+
+		prefix, _ := reader.Peek(4)
+		if !bytes.Equal(prefix, []byte("<!--")) {
+			break
+		}
+		_, _ = reader.Discard(4)
+		offset += 4
+		matched := 0
+		for matched < 3 {
+			value, err := reader.ReadByte()
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					return 0, nil
+				}
+				return 0, err
+			}
+			offset++
+			if value == '-' {
+				if matched < 2 {
+					matched++
+				}
+				continue
+			}
+			if value == '>' && matched == 2 {
+				matched = 3
+			} else {
+				matched = 0
+			}
+		}
+	}
+
+	prefix, _ := reader.Peek(len("<!doctype"))
+	if !bytes.EqualFold(prefix, []byte("<!doctype")) {
+		return 0, nil
+	}
+	for {
+		value, err := reader.ReadByte()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return 0, nil
+			}
+			return 0, err
+		}
+		offset++
+		if value == '>' {
+			return offset, nil
+		}
+	}
 }
 
 func (d *Daemon) authorizeShare(w http.ResponseWriter, r *http.Request, shareID string) (Share, string, bool) {
