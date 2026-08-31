@@ -10,7 +10,9 @@ func TestRenderHTMLPreviewPageClampsFrameToVisibleMobileWidth(t *testing.T) {
 
 	html := RenderHTMLPreviewPage("artifact.html", "/r/share123/artifact.html?t=token123", nil)
 	for _, want := range []string{
+		`grid-template-columns:minmax(0,1fr)`,
 		`width:var(--ferry-usable-width,100%)`,
+		`.artifact-shell .box-header,.artifact-frame{min-width:0}`,
 		`const isIOSWebKit = navigator.maxTouchPoints > 0 && CSS.supports("-webkit-touch-callout","none")`,
 		`if (!isIOSWebKit) return`,
 		`const landscape = matchMedia("(orientation:landscape)").matches`,
