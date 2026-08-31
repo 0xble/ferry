@@ -21,9 +21,10 @@ Generated release notes for tagged versions are also published on the
 
 ### Fixed
 
-- Interactive HTML previews now hard-contain the document viewport horizontally,
-  preventing iOS rubber-band drag into blank space while preserving vertical
-  scrolling and pinch zoom.
+- Interactive HTML previews now hard-contain the document viewport horizontally
+  and clamp embedded frames to the visible device width when iOS reports an
+  oversized layout viewport, preventing clipped content and rubber-band drag
+  into blank space while preserving vertical scrolling and pinch zoom.
 - CLI health checks now use a daemon-provided, loopback-only probe URL instead
   of requiring the local MagicDNS name to resolve. Redirects are rejected, and
   older daemons retain the existing public-URL fallback.

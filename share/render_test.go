@@ -5,6 +5,35 @@ import (
 	"testing"
 )
 
+func TestRenderHTMLPreviewPageClampsFrameToVisibleMobileWidth(t *testing.T) {
+	t.Parallel()
+
+	html := RenderHTMLPreviewPage("artifact.html", "/r/share123/artifact.html?t=token123", nil)
+	for _, want := range []string{
+		`width:var(--ferry-usable-width,100%)`,
+		`const isIOSWebKit = navigator.maxTouchPoints > 0 && CSS.supports("-webkit-touch-callout","none")`,
+		`if (!isIOSWebKit) return`,
+		`const landscape = matchMedia("(orientation:landscape)").matches`,
+		`landscape ? window.screen.height : window.screen.width`,
+		`landscape ? window.screen.availHeight : window.screen.availWidth`,
+		`const safeWidth=Math.floor(Math.min(...candidates))`,
+		`Math.abs(viewport.scale-1)<.01`,
+		`layoutWidth>safeWidth+8`,
+		`root.style.setProperty("--ferry-usable-width",safeWidth+"px")`,
+		`addEventListener("resize",clampVisibleWidth,{passive:true})`,
+		`viewport.addEventListener("resize",clampVisibleWidth,{passive:true})`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("expected mobile viewport clamp %q in HTML preview shell, got %q", want, html)
+		}
+	}
+	viewportIndex := strings.Index(html, `const viewport = window.visualViewport`)
+	clampIndex := strings.Index(html, `const clampVisibleWidth = () =>`)
+	if viewportIndex < 0 || viewportIndex > clampIndex {
+		t.Fatalf("expected visual viewport reference to be declared outside the clamp callback, got %q", html)
+	}
+}
+
 func TestRenderPreviewPageCodeGuardHighlightsGracefully(t *testing.T) {
 	t.Parallel()
 

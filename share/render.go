@@ -458,7 +458,7 @@ func RenderHTMLPreviewPage(baseName string, rawURL string, breadcrumbs []Breadcr
 <style>`+previewThemeCSS+previewBaseCSS+`
 html,body{width:100%%;max-width:100%%;height:100%%;overflow:hidden;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y pinch-zoom}
 body{display:flex}
-.artifact-shell{display:grid;grid-template-rows:auto minmax(0,1fr);width:100%%;max-width:100%%;height:100%%;overflow:hidden;background:var(--preview-canvas)}
+.artifact-shell{display:grid;grid-template-rows:auto minmax(0,1fr);width:var(--ferry-usable-width,100%%);max-width:var(--ferry-usable-width,100%%);height:100%%;overflow:hidden;background:var(--preview-canvas)}
 .artifact-shell .box-header{border:0;border-bottom:1px solid var(--preview-border);border-radius:0}
 .artifact-frame{display:block;width:100%%;max-width:100%%;height:100%%;border:0;background:#fff;overscroll-behavior-x:none;touch-action:pan-y pinch-zoom}
 </style></head><body>
@@ -468,6 +468,28 @@ body{display:flex}
 </main>
 <script>
 (() => {
+ const root = document.documentElement
+ const viewport = window.visualViewport
+ const isIOSWebKit = navigator.maxTouchPoints > 0 && CSS.supports("-webkit-touch-callout","none")
+ const clampVisibleWidth = () => {
+  if (!isIOSWebKit) return
+  const landscape = matchMedia("(orientation:landscape)").matches
+  const screenWidth = Number(window.screen && (landscape ? window.screen.height : window.screen.width)) || 0
+  const availableWidth = Number(window.screen && (landscape ? window.screen.availHeight : window.screen.availWidth)) || 0
+  const visualWidth = viewport && Math.abs(viewport.scale-1)<.01 ? Number(viewport.width) || 0 : 0
+  const candidates = [screenWidth, availableWidth, visualWidth].filter(width => width > 0)
+  if (!candidates.length) return
+  const safeWidth=Math.floor(Math.min(...candidates))
+  const layoutWidth = root.clientWidth
+  if (safeWidth >= 280 && layoutWidth>safeWidth+8) {
+   root.style.setProperty("--ferry-usable-width",safeWidth+"px")
+  } else {
+   root.style.removeProperty("--ferry-usable-width")
+  }
+ }
+ clampVisibleWidth()
+ addEventListener("resize",clampVisibleWidth,{passive:true})
+ if (viewport) viewport.addEventListener("resize",clampVisibleWidth,{passive:true})
  const frame = document.querySelector(".artifact-frame")
  const artifactURL = new URL(window.location.href)
  const marker = "/s/"
