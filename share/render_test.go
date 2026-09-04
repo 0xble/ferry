@@ -84,6 +84,29 @@ func TestRenderPreviewPageOmitsCopyActionForBinaryPreviews(t *testing.T) {
 	}
 }
 
+func TestRenderPreviewPageFitsImagesToWidthWithoutViewportHeightCap(t *testing.T) {
+	t.Parallel()
+
+	html := RenderPreviewPage("diagram.svg", PreviewImage, "/r/share123/diagram.svg?t=token123", nil)
+
+	if !strings.Contains(html, `.media img{display:block;width:auto;max-width:100%;height:auto;border-radius:4px}`) {
+		t.Fatalf("expected image previews to preserve intrinsic size while fitting available width, got %q", html)
+	}
+	if strings.Contains(html, `.media img{max-width:100%;max-height:80vh`) {
+		t.Fatalf("expected image previews not to be capped to viewport height, got %q", html)
+	}
+}
+
+func TestRenderPreviewPageKeepsVideoWithinViewport(t *testing.T) {
+	t.Parallel()
+
+	html := RenderPreviewPage("demo.mp4", PreviewVideo, "/r/share123/demo.mp4?t=token123", nil)
+
+	if !strings.Contains(html, `.media video{max-width:100%;max-height:80vh}`) {
+		t.Fatalf("expected video previews to retain the viewport-height cap, got %q", html)
+	}
+}
+
 func TestRenderDirectoryPageUsesCopyActionOnlyForCopyableFiles(t *testing.T) {
 	t.Parallel()
 

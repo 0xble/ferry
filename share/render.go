@@ -731,7 +731,7 @@ try {
 <title>%s</title>
 <style>`+previewThemeCSS+previewBaseCSS+`
 .media{display:flex;align-items:center;justify-content:center;padding:24px;min-height:300px}
-.media img{max-width:100%%;max-height:80vh;object-fit:contain;border-radius:4px}
+.media img{display:block;width:auto;max-width:100%%;height:auto;border-radius:4px}
 </style></head><body>
 <div class="container" style="max-width:1280px">
 <div class="box">

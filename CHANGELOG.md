@@ -21,6 +21,8 @@ Generated release notes for tagged versions are also published on the
 
 ### Fixed
 
+- Image previews now fit the available width and scroll vertically instead of
+  shrinking tall diagrams and screenshots to fit within the viewport height.
 - Interactive HTML previews now hard-contain the document viewport horizontally
   and clamp embedded frames to the visible device width when iOS reports an
   oversized layout viewport, preventing clipped content and rubber-band drag
