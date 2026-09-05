@@ -258,6 +258,9 @@ const (
 	iconDownload = `<path d="M12 3v11"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/>`
 	iconCopy     = `<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>`
 	iconCheck    = `<path d="M20 6 9 17l-5-5"/>`
+	iconZoomOut  = `<line x1="5" y1="12" x2="19" y2="12"/>`
+	iconZoomIn   = `<line x1="5" y1="12" x2="19" y2="12"/><line x1="12" y1="5" x2="12" y2="19"/>`
+	iconFitWidth = `<polyline points="8 3 3 3 3 8"/><polyline points="16 3 21 3 21 8"/><polyline points="8 21 3 21 3 16"/><polyline points="16 21 21 21 21 16"/>`
 )
 
 const previewActionScriptTag = `<script>
@@ -396,7 +399,7 @@ document.addEventListener("click", async event => {
 })
 </script>`
 
-func renderActionsHTML(rawURL string, canCopy bool) string {
+func renderActionsHTML(rawURL string, canCopy bool, showRaw bool) string {
 	u := template.HTMLEscapeString(rawURL)
 	var b strings.Builder
 	b.WriteString(`<div class="actions">`)
@@ -407,11 +410,13 @@ func renderActionsHTML(rawURL string, canCopy bool) string {
 		b.WriteString(renderCopyButtonIconsHTML())
 		b.WriteString(`</button>`)
 	}
-	b.WriteString(`<a class="action" href="`)
-	b.WriteString(u)
-	b.WriteString(`" title="Raw" aria-label="Raw"><svg viewBox="0 0 24 24">`)
-	b.WriteString(iconRaw)
-	b.WriteString(`</svg></a>`)
+	if showRaw {
+		b.WriteString(`<a class="action" href="`)
+		b.WriteString(u)
+		b.WriteString(`" title="Raw" aria-label="Raw"><svg viewBox="0 0 24 24">`)
+		b.WriteString(iconRaw)
+		b.WriteString(`</svg></a>`)
+	}
 	b.WriteString(`<a class="action" href="`)
 	b.WriteString(u)
 	b.WriteString(`" download title="Download" aria-label="Download"><svg viewBox="0 0 24 24">`)
@@ -419,6 +424,92 @@ func renderActionsHTML(rawURL string, canCopy bool) string {
 	b.WriteString(`</svg></a></div>`)
 	return b.String()
 }
+
+func renderImageActionsHTML(rawURL string) string {
+	u := template.HTMLEscapeString(rawURL)
+	return `<div class="actions">` +
+		`<button class="action image-zoom-out" type="button" title="Zoom out" aria-label="Zoom out" disabled><svg viewBox="0 0 24 24">` + iconZoomOut + `</svg></button>` +
+		`<button class="action image-zoom-fit" type="button" title="Fit width" aria-label="Fit width"><svg viewBox="0 0 24 24">` + iconFitWidth + `</svg></button>` +
+		`<button class="action image-zoom-in" type="button" title="Zoom in" aria-label="Zoom in"><svg viewBox="0 0 24 24">` + iconZoomIn + `</svg></button>` +
+		`<a class="action" href="` + u + `" download title="Download" aria-label="Download"><svg viewBox="0 0 24 24">` + iconDownload + `</svg></a>` +
+		`</div>`
+}
+
+const imageViewerScriptTag = `<script>
+(() => {
+ const viewport = document.querySelector(".image-viewport")
+ const image = document.getElementById("image-preview")
+ const zoomOut = document.querySelector(".image-zoom-out")
+ const zoomFit = document.querySelector(".image-zoom-fit")
+ const zoomIn = document.querySelector(".image-zoom-in")
+ if (!(viewport && image && zoomOut && zoomFit && zoomIn)) return
+
+ const scales = [1, 1.5, 2, 3, 4]
+ let scaleIndex = 0
+ let fitWidth = 0
+ let resizeFrame = 0
+
+ const measureFitWidth = () => {
+  const styles = getComputedStyle(viewport)
+  const horizontalPadding = (Number.parseFloat(styles.paddingLeft) || 0) + (Number.parseFloat(styles.paddingRight) || 0)
+  const availableWidth = Math.max(1, viewport.clientWidth - horizontalPadding)
+  const naturalWidth = Number(image.naturalWidth) || availableWidth
+  fitWidth = image.dataset.vector === "true" ? availableWidth : Math.min(naturalWidth, availableWidth)
+ }
+
+ const updateControls = () => {
+  const percent = Math.round(scales[scaleIndex] * 100)
+  zoomOut.disabled = scaleIndex === 0
+  zoomIn.disabled = scaleIndex === scales.length - 1
+  zoomFit.disabled = scaleIndex === 0
+  zoomFit.title = "Fit width (" + percent + "% zoom)"
+  zoomFit.setAttribute("aria-label", "Fit width, currently " + percent + "% zoom")
+ }
+
+ const render = () => {
+  image.style.width = Math.max(1, Math.round(fitWidth * scales[scaleIndex])) + "px"
+  image.style.maxWidth = "none"
+  updateControls()
+ }
+
+ const setScaleIndex = nextIndex => {
+  const boundedIndex = Math.max(0, Math.min(scales.length - 1, nextIndex))
+  if (boundedIndex === scaleIndex) return
+  const centerRatio = (viewport.scrollLeft + viewport.clientWidth / 2) / Math.max(viewport.scrollWidth, 1)
+  scaleIndex = boundedIndex
+  render()
+  requestAnimationFrame(() => {
+   viewport.scrollLeft = centerRatio * viewport.scrollWidth - viewport.clientWidth / 2
+  })
+ }
+
+ const fit = () => {
+  scaleIndex = 0
+  measureFitWidth()
+  render()
+  viewport.scrollLeft = 0
+ }
+
+ zoomOut.addEventListener("click", () => setScaleIndex(scaleIndex - 1))
+ zoomFit.addEventListener("click", fit)
+ zoomIn.addEventListener("click", () => setScaleIndex(scaleIndex + 1))
+
+ const initialize = () => {
+  measureFitWidth()
+  render()
+ }
+ if (image.complete) initialize()
+ else image.addEventListener("load", initialize, {once:true})
+
+ addEventListener("resize", () => {
+  cancelAnimationFrame(resizeFrame)
+  resizeFrame = requestAnimationFrame(() => {
+   measureFitWidth()
+   render()
+  })
+ }, {passive:true})
+})()
+</script>`
 
 func renderCopyButtonIconsHTML() string {
 	return `<svg class="icon-copy" viewBox="0 0 24 24">` + iconCopy +
@@ -448,7 +539,7 @@ func RenderHTMLPreviewPage(baseName string, rawURL string, breadcrumbs []Breadcr
 	if nav == "" {
 		nav = `<span class="filename">` + title + `</span>`
 	}
-	actions := renderActionsHTML(rawURL, true)
+	actions := renderActionsHTML(rawURL, true, true)
 	return fmt.Sprintf(`<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8" />
@@ -511,7 +602,7 @@ func RenderPreviewPage(baseName string, kind PreviewKind, rawURL string, breadcr
 	if nav == "" {
 		nav = `<span class="filename">` + title + `</span>`
 	}
-	actions := renderActionsHTML(rawURL, canCopyContents(kind))
+	actions := renderActionsHTML(rawURL, canCopyContents(kind), true)
 	actionScript := previewActionScriptTag
 
 	switch kind {
@@ -723,6 +814,8 @@ try {
 </script>%s</body></html>`, title, nav, actions, raw, actionScript)
 	case PreviewImage:
 		rawHTML := template.HTMLEscapeString(rawURL)
+		vector := strings.EqualFold(filepath.Ext(baseName), ".svg")
+		imageActions := renderImageActionsHTML(rawURL)
 		return fmt.Sprintf(`<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8" />
@@ -730,17 +823,26 @@ try {
 <meta name="color-scheme" content="light dark" />
 <title>%s</title>
 <style>`+previewThemeCSS+previewBaseCSS+`
-.media{display:flex;align-items:center;justify-content:center;padding:24px;min-height:300px}
-.media img{display:block;width:auto;max-width:100%%;height:auto;border-radius:4px}
+.image-box{overflow:visible}
+.image-viewport{overflow-x:auto;padding:24px;overscroll-behavior-x:contain;touch-action:pan-x pan-y pinch-zoom;-webkit-overflow-scrolling:touch}
+.image-stage{width:max-content;min-width:100%%}
+.image-stage img{display:block;width:auto;max-width:100%%;height:auto;margin:0 auto;border-radius:4px}
+@media(max-width:600px){
+ .container{max-width:none!important;padding:0}
+ .image-box{border:0;border-radius:0}
+ .image-box .box-header{position:sticky;top:0;z-index:2}
+ .image-viewport{padding:0}
+ .image-stage img{border-radius:0}
+}
 </style></head><body>
 <div class="container" style="max-width:1280px">
-<div class="box">
+<div class="box image-box">
 <div class="box-header">
 %s
 %s
 </div>
-<div class="media"><img src="%s" alt="%s" /></div>
-</div></div>%s</body></html>`, title, nav, actions, rawHTML, title, actionScript)
+<div class="image-viewport" tabindex="0" aria-label="Image viewer"><div class="image-stage"><img id="image-preview" src="%s" alt="%s" data-vector="%t" draggable="false" /></div></div>
+</div></div>%s</body></html>`, title, nav, imageActions, rawHTML, title, vector, imageViewerScriptTag)
 	case PreviewAudio:
 		rawHTML := template.HTMLEscapeString(rawURL)
 		return fmt.Sprintf(`<!doctype html>
@@ -814,8 +916,8 @@ func RenderDirectoryPage(title string, entries []DirEntry, breadcrumbs []Breadcr
 		"ts": func(t time.Time) string {
 			return t.Local().Format("2006-01-02 15:04")
 		},
-		"actions": func(rawURL string, canCopy bool) template.HTML {
-			return template.HTML(renderActionsHTML(rawURL, canCopy))
+		"actions": func(rawURL string, name string, canCopy bool) template.HTML {
+			return template.HTML(renderActionsHTML(rawURL, canCopy, ClassifyPreviewKind(name) != PreviewImage))
 		},
 	}).Parse(`<!doctype html>
 <html lang="en"><head>
@@ -847,7 +949,7 @@ func RenderDirectoryPage(title string, entries []DirEntry, breadcrumbs []Breadcr
 <td class="name"><a href="{{ .PreviewURL }}">{{ .Name }}{{ if .IsDir }}/{{ end }}</a></td>
 <td class="meta size">{{ if .IsDir }}-{{ else }}{{ size .Size }}{{ end }}</td>
 <td class="meta">{{ ts .ModTime }}</td>
-<td class="row-actions">{{ if not .IsDir }}{{ actions .RawURL .CanCopy }}{{ end }}</td>
+<td class="row-actions">{{ if not .IsDir }}{{ actions .RawURL .Name .CanCopy }}{{ end }}</td>
 </tr>
 {{ end }}
 </table>

@@ -21,6 +21,9 @@ Generated release notes for tagged versions are also published on the
 
 ### Fixed
 
+- Image previews now use a full-width mobile viewer with explicit zoom controls,
+  horizontal panning, native pinch zoom, and a download action instead of opening
+  raw SVGs that iOS scales into an unreadable single-screen document.
 - Image previews now fit the available width and scroll vertically instead of
   shrinking tall diagrams and screenshots to fit within the viewport height.
 - Interactive HTML previews now hard-contain the document viewport horizontally

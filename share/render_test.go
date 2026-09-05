@@ -84,16 +84,44 @@ func TestRenderPreviewPageOmitsCopyActionForBinaryPreviews(t *testing.T) {
 	}
 }
 
-func TestRenderPreviewPageFitsImagesToWidthWithoutViewportHeightCap(t *testing.T) {
+func TestRenderPreviewPageProvidesZoomableImageViewer(t *testing.T) {
 	t.Parallel()
 
 	html := RenderPreviewPage("diagram.svg", PreviewImage, "/r/share123/diagram.svg?t=token123", nil)
 
-	if !strings.Contains(html, `.media img{display:block;width:auto;max-width:100%;height:auto;border-radius:4px}`) {
-		t.Fatalf("expected image previews to preserve intrinsic size while fitting available width, got %q", html)
+	for _, want := range []string{
+		`class="image-viewport"`,
+		`id="image-preview"`,
+		`data-vector="true"`,
+		`class="action image-zoom-out"`,
+		`class="action image-zoom-fit"`,
+		`class="action image-zoom-in"`,
+		`touch-action:pan-x pan-y pinch-zoom`,
+		`const scales = [1, 1.5, 2, 3, 4]`,
+		`image.dataset.vector === "true" ? availableWidth : Math.min(naturalWidth, availableWidth)`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("expected zoomable image viewer markup %q, got %q", want, html)
+		}
 	}
-	if strings.Contains(html, `.media img{max-width:100%;max-height:80vh`) {
+	if strings.Contains(html, `title="Raw"`) {
+		t.Fatalf("expected image viewer not to link to the mobile-hostile raw image view, got %q", html)
+	}
+	if !strings.Contains(html, `href="/r/share123/diagram.svg?t=token123" download title="Download"`) {
+		t.Fatalf("expected image viewer to retain the original-file download, got %q", html)
+	}
+	if strings.Contains(html, `max-height:80vh`) {
 		t.Fatalf("expected image previews not to be capped to viewport height, got %q", html)
+	}
+}
+
+func TestRenderPreviewPagePreservesSmallRasterImageFit(t *testing.T) {
+	t.Parallel()
+
+	html := RenderPreviewPage("icon.png", PreviewImage, "/r/share123/icon.png?t=token123", nil)
+
+	if !strings.Contains(html, `data-vector="false"`) {
+		t.Fatalf("expected raster image to use intrinsic-width-aware fit behavior, got %q", html)
 	}
 }
 
@@ -136,6 +164,12 @@ func TestRenderDirectoryPageUsesCopyActionOnlyForCopyableFiles(t *testing.T) {
 	}
 	if strings.Contains(html, `data-copy-url="/r/share123/photo.png?t=token123"`) {
 		t.Fatalf("expected binary file row to omit copy action, got %q", html)
+	}
+	if strings.Contains(html, `href="/r/share123/photo.png?t=token123" title="Raw"`) {
+		t.Fatalf("expected image file row to omit the mobile-hostile raw view, got %q", html)
+	}
+	if !strings.Contains(html, `href="/r/share123/photo.png?t=token123" download title="Download"`) {
+		t.Fatalf("expected image file row to retain the original-file download, got %q", html)
 	}
 }
 
