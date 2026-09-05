@@ -25,7 +25,7 @@ func RenderMarkdownPreviewPage(
 	meta map[string]any,
 ) (string, error) {
 	nav := renderBreadcrumbHTML(breadcrumbs, title)
-	actions := renderActionsHTML(rawURL, canCopyContents(PreviewMarkdown))
+	actions := renderActionsHTML(rawURL, canCopyContents(PreviewMarkdown), true)
 	documentTitle, displayTitle, summary, metadata, tags, fields := buildMarkdownPreviewSections(title, meta)
 	mermaidScript := template.HTML("")
 	if strings.Contains(rendered, `class="mermaid-block`) {
