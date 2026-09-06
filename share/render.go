@@ -565,13 +565,11 @@ body{display:flex}
  const isIOSWebKit = navigator.maxTouchPoints > 0 && CSS.supports("-webkit-touch-callout","none")
  const clampVisibleWidth = () => {
   if (!isIOSWebKit) return
-  const landscape = matchMedia("(orientation:landscape)").matches
-  const screenWidth = Number(window.screen && (landscape ? window.screen.height : window.screen.width)) || 0
-  const availableWidth = Number(window.screen && (landscape ? window.screen.availHeight : window.screen.availWidth)) || 0
-  const visualWidth = viewport && Math.abs(viewport.scale-1)<.01 ? Number(viewport.width) || 0 : 0
-  const candidates = [screenWidth, availableWidth, visualWidth].filter(width => width > 0)
-  if (!candidates.length) return
-  const safeWidth=Math.floor(Math.min(...candidates))
+  // Screen dimensions describe the device, not split-view or rotated windows.
+  // Keep the last layout width while pinching so zoom does not reflow content.
+  if (!viewport || viewport.scale > 1.01) return
+  // Safari may initially shrink overflowing content below scale 1.
+  const safeWidth = Math.floor((Number(viewport.width) || 0) * Math.min(Number(viewport.scale) || 1, 1))
   const layoutWidth = root.clientWidth
   if (safeWidth >= 280 && layoutWidth>safeWidth+8) {
    root.style.setProperty("--ferry-usable-width",safeWidth+"px")
