@@ -70,9 +70,14 @@ func (d *Daemon) handleAdminCreateShare(w http.ResponseWriter, r *http.Request) 
 
 	snapshotRoot := ""
 	if mode == ModeSnapshot {
-		snapshotRoot, err = CreateSnapshot(d.cfg.Paths, shareID, absPath, info.IsDir())
+		snapshotRoot, err = CreateSnapshot(d.cfg.Paths, shareID, absPath, info.IsDir(), d.cfg.SnapshotMaxBytes)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "snapshot_failed", err.Error())
+			status := http.StatusInternalServerError
+			var limitErr *SnapshotLimitError
+			if errors.As(err, &limitErr) {
+				status = http.StatusBadRequest
+			}
+			writeError(w, status, "snapshot_failed", err.Error())
 			return
 		}
 	}
@@ -88,6 +93,7 @@ func (d *Daemon) handleAdminCreateShare(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := d.store.CreateShare(share); err != nil {
+		_ = CleanupSnapshot(snapshotRoot)
 		writeError(w, http.StatusInternalServerError, "store_error", err.Error())
 		return
 	}
@@ -153,8 +159,10 @@ func (d *Daemon) handleAdminShareByID(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, "store_error", err.Error())
 			return
 		}
-		_ = os.RemoveAll(filepath.Join(d.cfg.Paths.SnapshotsDir, id))
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "id": id})
+		go func(snapshotID string) {
+			_ = os.RemoveAll(filepath.Join(d.cfg.Paths.SnapshotsDir, snapshotID))
+		}(id)
 	default:
 		methodNotAllowed(w)
 	}

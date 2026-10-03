@@ -66,6 +66,9 @@ ferry publish ~/Projects/docs/
 # Snapshot mode (point-in-time copy)
 ferry publish --snapshot ~/Desktop/draft.md
 
+# ferryd config.toml: cap snapshot copies at 1 GiB by default
+# snapshot-max-bytes = 1073741824
+
 # Custom expiry (default: 7d)
 ferry publish --expires-in 24h ~/Desktop/notes.txt
 

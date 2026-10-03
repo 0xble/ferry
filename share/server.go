@@ -28,11 +28,12 @@ const (
 const adminAddrTCPPrefix = "tcp:"
 
 type DaemonConfig struct {
-	Paths       StatePaths
-	AdminAddr   string
-	PublicPort  int
-	TokenBytes  int
-	ExternalURL string
+	Paths            StatePaths
+	AdminAddr        string
+	PublicPort       int
+	TokenBytes       int
+	ExternalURL      string
+	SnapshotMaxBytes int64
 }
 
 type Daemon struct {
@@ -54,6 +55,12 @@ func NewDaemon(cfg DaemonConfig) (*Daemon, error) {
 	}
 	if cfg.TokenBytes < MinTokenBytes {
 		return nil, fmt.Errorf("token_bytes=%d is below minimum %d", cfg.TokenBytes, MinTokenBytes)
+	}
+	if cfg.SnapshotMaxBytes < 0 {
+		return nil, fmt.Errorf("snapshot_max_bytes=%d must not be negative", cfg.SnapshotMaxBytes)
+	}
+	if cfg.SnapshotMaxBytes == 0 {
+		cfg.SnapshotMaxBytes = DefaultSnapshotMaxBytes
 	}
 	if cfg.Paths.BaseDir == "" {
 		paths, err := DefaultStatePaths()
@@ -98,6 +105,8 @@ func (d *Daemon) Close() error {
 }
 
 func (d *Daemon) Run(ctx context.Context) error {
+	d.gcSnapshots(time.Now().UTC())
+
 	ip, err := LocalTailscaleIPv4()
 	if err != nil {
 		return err
@@ -186,7 +195,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		case err := <-errCh:
 			return err
 		case <-gcTicker.C:
-			d.gcExpiredShares(time.Now().UTC())
+			d.gcSnapshots(time.Now().UTC())
 		case <-failedAuthCleanupTicker.C:
 			if d.failedAuth != nil {
 				d.failedAuth.Cleanup(time.Now().UTC())
@@ -377,16 +386,38 @@ func escapeRel(rel string) string {
 	return strings.Join(escaped, "/")
 }
 
-func (d *Daemon) gcExpiredShares(now time.Time) {
-	shares, err := d.store.ExpiredShares(now)
+func (d *Daemon) gcSnapshots(now time.Time) {
+	shares, err := d.store.ListShares(false)
 	if err != nil {
 		return
 	}
+
+	activeSnapshotIDs := make(map[string]struct{}, len(shares))
 	for _, share := range shares {
-		if share.Mode == ModeSnapshot {
-			_ = os.RemoveAll(filepath.Join(d.cfg.Paths.SnapshotsDir, share.ID))
+		if share.Mode == ModeSnapshot && share.IsActive(now) {
+			activeSnapshotIDs[share.ID] = struct{}{}
 		}
 	}
+
+	entries, err := os.ReadDir(d.cfg.Paths.SnapshotsDir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.Type()&os.ModeSymlink != 0 || !entry.IsDir() {
+			continue
+		}
+		if _, ok := activeSnapshotIDs[entry.Name()]; ok {
+			continue
+		}
+		_ = os.RemoveAll(filepath.Join(d.cfg.Paths.SnapshotsDir, entry.Name()))
+	}
+}
+
+// gcExpiredShares is kept as a narrow compatibility wrapper for callers and
+// tests that exercise the previous name; snapshot GC now also removes orphans.
+func (d *Daemon) gcExpiredShares(now time.Time) {
+	d.gcSnapshots(now)
 }
 
 func writeJSON(w http.ResponseWriter, code int, value any) {

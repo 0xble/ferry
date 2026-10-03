@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -449,6 +450,11 @@ func runUnshare(client *share.Client) error {
 			}
 			fmt.Printf("revoked share: %s\n", target)
 			return nil
+		} else {
+			var apiErr *share.APIError
+			if !errors.As(err, &apiErr) || apiErr.Code != "not_found" {
+				return err
+			}
 		}
 	}
 

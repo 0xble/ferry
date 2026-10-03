@@ -27,11 +27,12 @@ type cli struct {
 }
 
 type serveCmd struct {
-	AdminAddr   string `name:"admin-addr" help:"Admin API listen address. Defaults to a Unix domain socket in the state dir; prefix tcp: for TCP (tests only)."`
-	PublicPort  int    `name:"public-port" default:"39124" help:"Public file-serving port (tailnet-only bind)"`
-	TokenBytes  int    `name:"token-bytes" default:"8" help:"HMAC token truncation length in bytes (minimum 8)"`
-	ExternalURL string `name:"external-url" help:"Override external base URL for generated share links (e.g. https://share.example.com)"`
-	StateDir    string `name:"state-dir" help:"Override state directory"`
+	AdminAddr        string `name:"admin-addr" help:"Admin API listen address. Defaults to a Unix domain socket in the state dir; prefix tcp: for TCP (tests only)."`
+	PublicPort       int    `name:"public-port" default:"39124" help:"Public file-serving port (tailnet-only bind)"`
+	TokenBytes       int    `name:"token-bytes" default:"8" help:"HMAC token truncation length in bytes (minimum 8)"`
+	ExternalURL      string `name:"external-url" help:"Override external base URL for generated share links (e.g. https://share.example.com)"`
+	SnapshotMaxBytes int64  `name:"snapshot-max-bytes" default:"1073741824" help:"Maximum snapshot size in bytes (default: 1 GiB)"`
+	StateDir         string `name:"state-dir" help:"Override state directory"`
 }
 
 func (c *serveCmd) Run() error {
@@ -51,11 +52,12 @@ func (c *serveCmd) Run() error {
 	}
 
 	daemon, err := share.NewDaemon(share.DaemonConfig{
-		Paths:       paths,
-		AdminAddr:   c.AdminAddr,
-		PublicPort:  c.PublicPort,
-		TokenBytes:  c.TokenBytes,
-		ExternalURL: c.ExternalURL,
+		Paths:            paths,
+		AdminAddr:        c.AdminAddr,
+		PublicPort:       c.PublicPort,
+		TokenBytes:       c.TokenBytes,
+		ExternalURL:      c.ExternalURL,
+		SnapshotMaxBytes: c.SnapshotMaxBytes,
 	})
 	if err != nil {
 		return err
