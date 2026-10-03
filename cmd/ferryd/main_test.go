@@ -46,6 +46,7 @@ admin-addr = "127.0.0.1:40125"
 public-port = 40124
 token-bytes = 12
 external-url = "https://cfg.example"
+snapshot-max-bytes = 12345
 state-dir = "/tmp/ferry-state"
 `)
 
@@ -70,6 +71,9 @@ state-dir = "/tmp/ferry-state"
 	if c.Serve.ExternalURL != "https://cfg.example" {
 		t.Fatalf("expected external URL from config, got %q", c.Serve.ExternalURL)
 	}
+	if c.Serve.SnapshotMaxBytes != 12345 {
+		t.Fatalf("expected snapshot size limit from config, got %d", c.Serve.SnapshotMaxBytes)
+	}
 	if c.Serve.StateDir != "/tmp/ferry-state" {
 		t.Fatalf("expected state dir from config, got %q", c.Serve.StateDir)
 	}
@@ -83,6 +87,7 @@ admin-addr = "127.0.0.1:40125"
 public-port = 40124
 token-bytes = 12
 external-url = "https://cfg.example"
+snapshot-max-bytes = 12345
 state-dir = "/tmp/ferry-state"
 `)
 

@@ -13,6 +13,19 @@ import (
 	"time"
 )
 
+type APIError struct {
+	StatusCode int
+	Code       string
+	Message    string
+}
+
+func (e *APIError) Error() string {
+	if e.Code == "" {
+		return fmt.Sprintf("request failed: status %d: %s", e.StatusCode, e.Message)
+	}
+	return fmt.Sprintf("%s: %s", e.Code, e.Message)
+}
+
 type Client struct {
 	baseURL    string
 	http       *http.Client
@@ -245,7 +258,7 @@ func decodeAPIError(resp *http.Response) error {
 		} `json:"error"`
 	}
 	if err := json.Unmarshal(body, &envelope); err == nil && envelope.Error.Message != "" {
-		return fmt.Errorf("%s: %s", envelope.Error.Code, envelope.Error.Message)
+		return &APIError{StatusCode: resp.StatusCode, Code: envelope.Error.Code, Message: envelope.Error.Message}
 	}
-	return fmt.Errorf("request failed: status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	return &APIError{StatusCode: resp.StatusCode, Message: strings.TrimSpace(string(body))}
 }
