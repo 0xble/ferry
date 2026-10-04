@@ -33,6 +33,35 @@ func TestRenderHTMLPreviewPageClampsFrameToVisibleMobileWidth(t *testing.T) {
 	}
 }
 
+func TestRenderHTMLPreviewPageLetsHeaderScrollAway(t *testing.T) {
+	t.Parallel()
+
+	html := RenderHTMLPreviewPage("artifact.html", "/r/share123/artifact.html?t=token123", nil)
+	for _, want := range []string{
+		`.artifact-shell.is-overlay .box-header{position:absolute;top:0;left:0;right:0;z-index:1`,
+		`frame.contentWindow.postMessage({type:"ferry:inset",top:headerInset},"*")`,
+		`if (event.source !== frame.contentWindow`,
+		`shell.classList.add("is-overlay")`,
+		`header.style.transform = "translateY(" + (-Math.min(Math.max(offset,0),headerInset)) + "px)"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("expected scroll-away header bridge %q in HTML preview shell, got %q", want, html)
+		}
+	}
+	if strings.Contains(html, "sticky") {
+		t.Fatalf("expected HTML preview header not to be sticky, got %q", html)
+	}
+}
+
+func TestRenderPreviewPageImageHeaderIsNotSticky(t *testing.T) {
+	t.Parallel()
+
+	html := RenderPreviewPage("diagram.svg", PreviewImage, "/r/share123/diagram.svg?t=token123", nil)
+	if strings.Contains(html, "position:sticky") {
+		t.Fatalf("expected image preview header to scroll with the page, got %q", html)
+	}
+}
+
 func TestRenderPreviewPageCodeGuardHighlightsGracefully(t *testing.T) {
 	t.Parallel()
 
