@@ -222,7 +222,14 @@ const htmlViewportContainmentStyle = `<style id="ferry-viewport-containment">htm
 
 const htmlViewportContainmentScript = `<script id="ferry-viewport-containment-script">(()=>{const declarations={width:"100%",maxWidth:"100%",overflowX:CSS.supports("overflow-x","clip")?"clip":"hidden",overscrollBehaviorX:"none",touchAction:"pan-y pinch-zoom"};const apply=()=>{for(const node of [document.documentElement,document.body]){if(!node)continue;for(const [property,value] of Object.entries(declarations)){const cssProperty=property.replace(/[A-Z]/g,letter=>"-"+letter.toLowerCase());if(node.style.getPropertyValue(cssProperty)!==value||node.style.getPropertyPriority(cssProperty)!=="important")node.style.setProperty(cssProperty,value,"important")}}};new MutationObserver(apply).observe(document,{subtree:true,childList:true,attributes:true,attributeFilter:["style"]});apply();addEventListener("DOMContentLoaded",apply,{once:true})})()</script>`
 
-const htmlViewportContainmentMarkup = htmlViewportContainmentStyle + htmlViewportContainmentScript
+// htmlPreviewHeaderBridgeScript lets the Ferry preview header scroll away with
+// the artifact. The parent preview page sends the header height; the artifact
+// reserves that much space above its content and reports its scroll offset so
+// the parent can move the header in step. Artifacts that clip their own
+// viewport never confirm, so the parent keeps the header above the frame.
+const htmlPreviewHeaderBridgeScript = `<script id="ferry-preview-header-bridge">(()=>{if(window.parent===window)return;const root=document.documentElement;let base=null;let frame=0;const post=message=>window.parent.postMessage(message,"*");const report=()=>{frame=0;post({type:"ferry:scroll",offset:window.scrollY})};const clips=()=>{const r=getComputedStyle(root).overflowY;if(r==="hidden"||r==="clip")return true;if(r!=="visible"||!document.body)return false;const b=getComputedStyle(document.body).overflowY;return b==="hidden"||b==="clip"};const apply=top=>{if(clips())return;if(base===null)base=parseFloat(getComputedStyle(root).paddingTop)||0;root.style.setProperty("padding-top",base+top+"px","important");post({type:"ferry:inset-applied"});report()};addEventListener("message",event=>{if(event.source!==window.parent||!event.data||event.data.type!=="ferry:inset")return;const top=Number(event.data.top);if(!Number.isFinite(top)||top<0||top>400)return;if(document.readyState==="loading")addEventListener("DOMContentLoaded",()=>apply(top),{once:true});else apply(top)});addEventListener("scroll",()=>{if(!frame)frame=requestAnimationFrame(report)},{passive:true});post({type:"ferry:hello"})})()</script>`
+
+const htmlViewportContainmentMarkup = htmlViewportContainmentStyle + htmlViewportContainmentScript + htmlPreviewHeaderBridgeScript
 
 func newHTMLArtifactReadSeeker(source io.ReaderAt, sourceSize int64) (*io.SectionReader, error) {
 	insertAt, err := htmlViewportGuardOffsetReader(source, sourceSize)

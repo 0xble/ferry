@@ -549,9 +549,11 @@ func RenderHTMLPreviewPage(baseName string, rawURL string, breadcrumbs []Breadcr
 <style>`+previewThemeCSS+previewBaseCSS+`
 html,body{width:100%%;max-width:100%%;height:100%%;overflow:hidden;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y pinch-zoom}
 body{display:flex}
-.artifact-shell{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);width:var(--ferry-usable-width,100%%);max-width:var(--ferry-usable-width,100%%);height:100%%;overflow:hidden;background:var(--preview-canvas)}
+.artifact-shell{position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);width:var(--ferry-usable-width,100%%);max-width:var(--ferry-usable-width,100%%);height:100%%;overflow:hidden;background:var(--preview-canvas)}
 .artifact-shell .box-header,.artifact-frame{min-width:0}
 .artifact-shell .box-header{border:0;border-bottom:1px solid var(--preview-border);border-radius:0}
+.artifact-shell.is-overlay{grid-template-rows:minmax(0,1fr)}
+.artifact-shell.is-overlay .box-header{position:absolute;top:0;left:0;right:0;z-index:1;will-change:transform}
 .artifact-frame{display:block;width:100%%;max-width:100%%;height:100%%;border:0;background:#fff;overscroll-behavior-x:none;touch-action:pan-y pinch-zoom}
 </style></head><body>
 <main class="artifact-shell">
@@ -588,6 +590,47 @@ body{display:flex}
  artifactURL.pathname = artifactURL.pathname.slice(0, markerIndex) + "/h/" + artifactURL.pathname.slice(markerIndex + marker.length)
  artifactURL.searchParams.delete("pv")
  artifactURL.hash = ""
+ // The header scrolls away with the artifact instead of staying pinned.
+ // The sandboxed artifact reports its scroll offset; in overlay mode the
+ // header sits over the frame and the artifact reserves an equal top margin,
+ // so content and header move together. Artifacts that never complete the
+ // handshake keep the header above the frame.
+ const shell = document.querySelector(".artifact-shell")
+ const header = shell.querySelector(".box-header")
+ let headerInset = 0
+ let bridged = false
+ const sendInset = () => {
+  if (!frame.contentWindow) return
+  headerInset = Math.ceil(header.getBoundingClientRect().height)
+  frame.contentWindow.postMessage({type:"ferry:inset",top:headerInset},"*")
+ }
+ addEventListener("message", event => {
+  if (event.source !== frame.contentWindow || !event.data || typeof event.data !== "object") return
+  if (event.data.type === "ferry:hello") {
+   bridged = true
+   shell.classList.remove("is-overlay")
+   header.style.transform = ""
+   sendInset()
+  } else if (event.data.type === "ferry:inset-applied") {
+   shell.classList.add("is-overlay")
+  } else if (event.data.type === "ferry:scroll") {
+   const offset = Number(event.data.offset)
+   if (!Number.isFinite(offset) || !shell.classList.contains("is-overlay")) return
+   header.style.transform = "translateY(" + (-Math.min(Math.max(offset,0),headerInset)) + "px)"
+  }
+ })
+ frame.addEventListener("load", () => {
+  if (!bridged) {
+   shell.classList.remove("is-overlay")
+   header.style.transform = ""
+  }
+  bridged = false
+ })
+ if (window.ResizeObserver) {
+  new ResizeObserver(() => {
+   if (shell.classList.contains("is-overlay") && Math.ceil(header.getBoundingClientRect().height) !== headerInset) sendInset()
+  }).observe(header)
+ }
  frame.src = artifactURL.pathname + artifactURL.search
 })()
 </script>%s</body></html>`, title, nav, actions, title, previewActionScriptTag)
@@ -828,7 +871,6 @@ try {
 @media(max-width:600px){
  .container{max-width:none!important;padding:0}
  .image-box{border:0;border-radius:0}
- .image-box .box-header{position:sticky;top:0;z-index:2}
  .image-viewport{padding:0}
  .image-stage img{border-radius:0}
 }
