@@ -33,7 +33,7 @@ First inspect `git config --show-scope --get-all core.hooksPath`. If another hoo
 
 ## CI
 
-Pull requests run `./bin/ci gate` on GitHub at the exact head commit. The `qualification` check is the only merge requirement. `./bin/ci nightly` runs on main every day at 06:41 UTC and can be dispatched manually. Releases stay tag-driven through `.github/workflows/release.yml`.
+Pull requests run `./bin/ci gate` on GitHub at the exact head commit. The `qualification` check is the only merge requirement. A successful local `./bin/ci gate` also writes an exact-SHA receipt to `${XDG_STATE_HOME:-~/.local/state}/ci-receipts/<owner>/<repo>/<sha>.json` (override with `CI_RECEIPT_ROOT`) for local tooling. It is never written on GitHub Actions and is not a merge requirement. `./bin/ci nightly` runs on main every day at 06:41 UTC and can be dispatched manually. Releases stay tag-driven through `.github/workflows/release.yml`.
 
 ## Pull requests
 

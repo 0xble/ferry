@@ -57,6 +57,43 @@ if [[ "$profile" == preflight ]]; then
 fi
 
 expected=$2
+write_local_receipt() {
+  local remote path owner repo branch state_root receipt tmp
+  remote=$(git remote get-url origin 2>/dev/null) || {
+    echo 'cannot write local gate receipt: origin remote is unavailable' >&2
+    return 1
+  }
+  remote=${remote%/}
+  remote=${remote%.git}
+  case "$remote" in
+    *://*) path=${remote#*://}; path=${path#*/} ;;
+    *:*) path=${remote##*:} ;;
+    *) path=$remote ;;
+  esac
+  repo=${path##*/}
+  owner=${path%/*}
+  owner=$(printf '%s' "$owner" | tr '[:upper:]' '[:lower:]')
+  repo=$(printf '%s' "$repo" | tr '[:upper:]' '[:lower:]')
+  if [[ ! "$owner" =~ ^[a-z0-9][a-z0-9._-]*$ || ! "$repo" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
+    echo "cannot write local gate receipt: unsupported origin URL $remote" >&2
+    return 1
+  fi
+  branch=$(git branch --show-current)
+  branch=${branch//\\/\\\\}
+  branch=${branch//\"/\\\"}
+  state_root="${CI_RECEIPT_ROOT:-${XDG_STATE_HOME:-$HOME/.local/state}/ci-receipts}"
+  receipt="$state_root/$owner/$repo/$expected.json"
+  tmp="$receipt.tmp.$$"
+  mkdir -p "$(dirname "$receipt")"
+  (
+    umask 077
+    printf '{\n  "schema_version": 1,\n  "repository": "%s/%s",\n  "sha": "%s",\n  "branch": "%s",\n  "command": "./bin/ci gate",\n  "gate_exit": 0,\n  "clean_tracked_tree": true,\n  "timestamp": "%s"\n}\n' \
+      "$owner" "$repo" "$expected" "$branch" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$tmp"
+  )
+  mv -f -- "$tmp" "$receipt"
+  printf 'local gate receipt: %s\n' "$receipt"
+}
+
 assert_candidate() {
   local actual
   actual=$(git rev-parse HEAD)
@@ -90,4 +127,8 @@ if [[ "$profile" == nightly ]]; then
 fi
 
 assert_candidate
+if [[ "$profile" == gate && "${GITHUB_ACTIONS:-}" != true ]]; then
+  # Local exact-SHA evidence for tooling that marks PRs ready. Hosted CI stays authoritative.
+  write_local_receipt
+fi
 printf 'PASS: %s validated %s and unchanged tracked tree\n' "$profile" "$expected"
