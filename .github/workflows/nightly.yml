@@ -1,54 +1,14 @@
-name: Repository nightly
-
+name: nightly
+# From github.com/0xble/toolkit templates/tool.
 on:
   schedule:
-    - cron: '41 6 * * *'
+    - cron: "17 9 * * *"
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
   group: nightly-${{ github.ref }}
   cancel-in-progress: false
-
 jobs:
   nightly:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - name: Assert checked-out SHA
-        env:
-          EXPECTED_SHA: ${{ github.sha }}
-        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Assert exact clean head after setup
-        env:
-          EXPECTED_SHA: ${{ github.sha }}
-        run: |
-          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          git diff --quiet --ignore-submodules=none
-          git diff --cached --quiet --ignore-submodules=none
-      - name: Run exact-SHA nightly
-        env:
-          EXPECTED_SHA: ${{ github.sha }}
-        run: ./bin/ci nightly "$EXPECTED_SHA"
-
-  qualification:
-    name: qualification
-    needs: [nightly]
-    if: always()
-    runs-on: ubuntu-24.04
-    timeout-minutes: 2
-    steps:
-      - name: Require nightly success
-        env:
-          NIGHTLY_RESULT: ${{ needs.nightly.result }}
-        run: test "$NIGHTLY_RESULT" = success
+    uses: 0xble/toolkit/.github/workflows/tool-nightly.yml@v0.1.7

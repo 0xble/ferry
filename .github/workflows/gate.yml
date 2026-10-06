@@ -1,52 +1,32 @@
-name: Repository gate
-
+name: gate
+# From github.com/0xble/toolkit templates/tool. The exact-SHA gate and its
+# draft policy live in the reusable workflow, pinned by tag.
 on:
   pull_request:
-
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
 permissions:
   contents: read
-
 concurrency:
-  group: gate-${{ github.event.pull_request.number }}
+  group: gate-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   gate:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-      - name: Assert checked-out SHA
-        env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
-        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Assert exact clean head after setup
-        env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          git diff --quiet --ignore-submodules=none
-          git diff --cached --quiet --ignore-submodules=none
-      - name: Run exact-SHA gate
-        env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
-        run: ./bin/ci gate "$EXPECTED_SHA"
+    uses: 0xble/toolkit/.github/workflows/tool-gate.yml@v0.1.7
 
+  # The required check. A called workflow's jobs are reported as
+  # "gate / ...", so this job carries the plain `qualification` name.
   qualification:
-    name: qualification
+    runs-on: ubuntu-slim
     needs: [gate]
     if: always()
-    runs-on: ubuntu-24.04
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
-      - name: Require gate success
+      - name: Require the reusable gate
         env:
           GATE_RESULT: ${{ needs.gate.result }}
-        run: test "$GATE_RESULT" = success
+        run: |
+          printf 'reusable gate: %s\n' "$GATE_RESULT"
+          [ "$GATE_RESULT" = success ] || { echo 'gate not qualified' >&2; exit 1; }
+          echo 'gate qualified'

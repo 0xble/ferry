@@ -10,7 +10,23 @@ Generated release notes for tagged versions are also published on the
 
 ## [Unreleased]
 
+### Changed
+
+- The `ferry` client is rebuilt on [toolkit](https://github.com/0xble/toolkit).
+  Every command, flag, JSON shape and exit code callers use is kept; see
+  [docs/compatibility.md](docs/compatibility.md) for the inventory and the
+  intentional changes. Errors are one envelope under `--json`, parse errors
+  exit 2 instead of 80, a share or path that does not exist exits 3, and
+  `doctor --json` exits 1 when a check fails. `ferry <path>` publishes only an
+  existing path. `ferryd` is unchanged.
+
 ### Added
+
+- `--dry-run` on `publish`, `renew` and `unshare` previews the change without
+  touching the daemon's state, and never starts the daemon.
+- `ferry serve --socket`, `ferry mcp` and `ferry metadata --json` expose the
+  operations over HTTP and MCP. Served writes are refused by default, and a
+  served `publish` refuses a path.
 
 - Markdown previews now render `mermaid` fenced code blocks as responsive diagrams,
   with copyable source and a readable fallback when the renderer is unavailable.

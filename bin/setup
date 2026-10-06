@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Build ferry and ferryd from this checkout and install them into ~/.local/bin.
+#
+# Each binary is written beside its target and renamed over it, so a running
+# ferryd keeps its old executable until launchd restarts it. This script never
+# restarts the daemon.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+command -v go >/dev/null 2>&1 || { echo "error: go toolchain not found" >&2; exit 1; }
+
+if version="$(git describe --tags --match 'v[0-9]*' --exact-match 2>/dev/null)"; then
+  :
+elif sha="$(git rev-parse --short HEAD 2>/dev/null)"; then
+  version="dev+$sha"
+else
+  version="dev"
+fi
+prefix="${PREFIX:-$HOME/.local/bin}"
+mkdir -p "$prefix"
+
+# ferryd first, so the last line names ferry and its version.
+for name in ferryd ferry; do
+  target="$prefix/$name"
+  if [ -e "$target" ] && [ ! -f "$target" ]; then
+    echo "error: $target exists and is not a regular file; refusing to overwrite" >&2
+    exit 1
+  fi
+  tmp="$prefix/.$name.tmp.$$"
+  GOWORK=off go build -trimpath -ldflags "-s -w -X main.version=${version}" -o "$tmp" "./cmd/$name"
+  mv -f "$tmp" "$target"
+  echo "installed: $target ($("$target" --version 2>&1 | head -1))"
+done
+
+case ":$PATH:" in
+  *":$prefix:"*) ;;
+  *) echo "note: $prefix is not on PATH" >&2 ;;
+esac
