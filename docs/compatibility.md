@@ -197,22 +197,71 @@ error text, and none branches on a specific exit number.
 
 ## Caller Compatibility Test
 
-See `internal/compat`. Filled in with the result once the goldens are recorded.
+`internal/compat` holds one case per caller invocation above, the README's
+human forms, and the error paths: 43 cases. Each golden was recorded from the
+old binary and holds the exit code, the stdout JSON or text, the stderr
+envelope or text, and the admin API requests the daemon answered (method and
+path). The daemon is the real `share` daemon hosted in-process on random
+loopback ports (`internal/ferrytest`), over a state directory under
+`t.TempDir()`, with a fake `tailscale` on `PATH`. Share IDs, tokens, times,
+the sandbox path and the OS-specific text of a failed socket dial are
+normalised. The test runs the new CLI in-process through `cli.Run`, after the
+same implicit-publish rewrite `main` applies, with the same arguments and
+environment, and requires all of it to match.
+
+`internal/compat/record.sh [ref]` re-records the goldens. It exports `ref`
+(default `6267d4d`) to a temporary directory and builds only `ferry` from it,
+unchanged: `FERRY_ADMIN_ADDR` points the old client at the test daemon, and no
+`ferryd` is on `PATH` or beside it, so a case whose daemon is down cannot
+spawn one.
+
+Result on the rewrite: 43 of 43 pass. 11 cases carry a documented change
+(below): stderr is not compared for them, and stdout is not compared for the
+five parse-error cases, where the old binary printed kong's usage text. Exit
+codes and requests are always compared, against the documented new code where
+it moved. Four cases make fewer requests, because the new binary refuses an
+invalid argument before it checks the daemon.
 
 ## Escape Hatches
 
-None planned: all six commands are registry operations with render hooks.
+An escape hatch is a command that needed hand-written code beyond the
+registry: custom kong wiring, rendering beyond the `Render` hook, or a path
+around toolkit dispatch.
+
+None: 0 of 6 commands. All six are registry operations with render hooks.
+Two small pieces sit outside the registry, neither a command:
+
+- **Implicit publish.** `cmd/ferry` rewrites `ferry <path>` to
+  `ferry publish <path>` before toolkit parses (`ops.ImplicitPublish`), as the
+  old `main` did.
+- **`-V`.** A hidden root flag in `ops.Globals` of kong's `VersionFlag` type,
+  since toolkit's own `--version` has no short form.
+
+## MCP Exposure
+
+3 of 6 operations are MCP tools: `shares_list`, `share_get` and `doctor`.
+`share.publish`, `share.renew` and `share.unshare` are writes and stay on the
+CLI and the HTTP API. On HTTP they preview without `"apply": true`, and `serve`
+refuses an applied write by default. `publish`'s `path` and `open` are
+CLI-only inputs (`toolkit:"cli-only"`), so HTTP refuses them with `cli_only`,
+and a served `publish` without a path only previews.
+
+`list` and `get` start a down daemon on every surface, as the CLI always did.
 
 ## Intentional Changes
 
+Every other inventoried command, flag, default, JSON shape and exit code is
+unchanged and covered by the caller test.
+
 | # | Change | Why | Affected callers |
 | --- | --- | --- | --- |
-| C1 | `publish`, `renew` and `unshare` gain `--dry-run`, and accept `--apply` as a hidden no-op. They still apply immediately without either | toolkit write model with `CLIImmediate` | none: additive |
-| C2 | Every error is the toolkit envelope under `--json`/`--agent` and `error: <message>` otherwise. The old binary chose JSON when stdout was not a terminal and printed most errors as raw text | one error path, and output must not depend on a pipe | none parse stderr |
-| C3 | `doctor --json` exits 1 when a check fails, with the report on stdout and `health_check_failed` on stderr. It exited 0 | one result per surface; the text form already exited 1 | none: the show-me skill runs the text form |
-| C4 | Parse errors exit 2 with one error line instead of the usage text and exit 80, and an invalid `--expires-in` or `--for` is `invalid_args` | family exit table | none branch on 80 |
-| C5 | Daemon 404s and a missing publish path exit 3 `not_found`, and daemon 400s exit 2, instead of 1 | family exit table | none branch on the number |
-| C6 | `ferry <word>` publishes only when `<word>` exists, and `serve`, `mcp`, `metadata` are commands, not paths | an unknown command must be a usage error, not a daemon start | none: callers spell `publish` |
-| C7 | `publish --json --open HOST` now opens the URL, and `ssh`'s own output goes to stderr | the old early return was a bug, and stdout must stay JSON | none use `--open` |
-| C8 | New commands `serve --socket`, `mcp`, `metadata --json` | fleet design | additive |
-| C9 | Help text and layout follow toolkit | toolkit help | none parse help |
+| C1 | `publish`, `renew` and `unshare` gain `--dry-run`, and accept `--apply` as a hidden no-op. They still apply immediately without either. A preview never starts the daemon. `publish --dry-run` plans offline, and says whether it would create a share or renew a live one | toolkit write model with `CLIImmediate` (D21) | none: additive |
+| C2 | Every error is the toolkit envelope `{"error":{"code","message","exit_code"}}` under `--json`/`--agent`, and `error: <message>` otherwise. The old binary chose the envelope when stdout was not a terminal and printed most errors (daemon down, daemon API errors, `stat` failures) as raw text. Codes are `daemon_unavailable`, `daemon_error`, the daemon's own code (`not_found`, `store_error`, `snapshot_failed`, ...), `invalid_args`, `not_found`, `open_failed`, `health_check_failed` and `usage` | one error path, and output must not depend on a pipe | none parse stderr |
+| C3 | `doctor --json` exits 1 when a check fails, with the report still on stdout and `health_check_failed` on stderr. It exited 0. MCP returns the report with `isError` | one result per surface. The text form already exited 1 | none: the show-me skill runs the text form |
+| C4 | Parse errors (missing argument, unknown flag or command, bare `ferry`) exit 2 with one error line or envelope instead of the usage text and exit 80. An invalid `--expires-in` or `--for` is `invalid_args`, exit 2, with kong's old message text | family exit table | none branch on 80 |
+| C5 | A share the daemon does not know (`get`, `renew`) and a publish path that does not exist exit 3 `not_found` instead of 1. A daemon 400, such as a snapshot over `snapshot-max-bytes`, exits 2 instead of 1 | family exit table | none branch on the number |
+| C6 | `ferry <word>` publishes only when `<word>` names an existing file or directory. `serve`, `mcp` and `metadata` are commands, not paths | an unknown word must be a usage error, not a publish that starts the daemon | none: every caller spells `publish` |
+| C7 | `publish --json --open HOST` now opens the URL (the old binary returned before opening), `ssh`'s own output goes to stderr, a host starting with `-` is refused before anything is published (it was refused after), and an `ssh` failure prints the share and then `open_failed` | the early return was a bug, and stdout carries the result | none use `--open` |
+| C8 | Invalid arguments are refused before the daemon is checked or started: `--expires-in`, `--for`, a missing path, Markdown assets outside the directory | no daemon start for a call that cannot succeed | none |
+| C9 | New commands `serve --socket`, `mcp` and `metadata --json`, and root flags `--agent`, `--fields`, `-y/--yes` | fleet design | additive |
+| C10 | Help text and layout follow toolkit: commands are grouped under `Operations` and `Commands`, `--expires-in` and `--for` show quoted defaults, and `-V` is hidden | toolkit help | none parse help |

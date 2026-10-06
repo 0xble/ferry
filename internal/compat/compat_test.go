@@ -146,7 +146,7 @@ var (
 		{name: "readme-version-short", caller: "README", args: []string{"-V"}},
 
 		// Error paths.
-		{name: "err-expires-zero", caller: "publish", args: []string{"publish", "--expires-in=0", "--json", "{work}/notes.txt"}, fewerRequests: true},
+		{name: "err-expires-zero", caller: "publish", args: []string{"publish", "--expires-in=0", "--json", "{work}/notes.txt"}},
 		{name: "err-for-zero", caller: "renew", args: []string{"renew", "--for=0", "--json", "{id}"}, setup: one, fewerRequests: true},
 		{name: "err-markdown-escape", caller: "publish", args: []string{"publish", "--json", "{work}/escape/plan.md"}, fewerRequests: true},
 		{name: "err-unshare-unmatched", caller: "unshare", args: []string{"unshare", "--json", "--", "nope"}},
