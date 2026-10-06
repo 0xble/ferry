@@ -204,6 +204,19 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 }
 
+// Handlers returns the admin API and the public share routes without
+// binding any listener, with baseURL as the base of generated share links.
+// Run serves the same handlers on the Tailscale, loopback and admin
+// listeners. Tests host a daemon on listeners of their own with it; the
+// admin health probe still points at 127.0.0.1 on cfg.PublicPort.
+func (d *Daemon) Handlers(baseURL string) (admin, public http.Handler) {
+	d.mu.Lock()
+	d.publicBase = strings.TrimRight(baseURL, "/")
+	d.externalBase = d.publicBase
+	d.mu.Unlock()
+	return d.adminMux(), d.publicMux()
+}
+
 func (d *Daemon) PublicBaseURL() string {
 	d.mu.RLock()
 	base := d.publicBase

@@ -1,20 +1,17 @@
-package main
+package ops
 
 import (
-	"errors"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
 
-	"github.com/0xble/ferry/internal/cli"
 	"github.com/0xble/ferry/share"
 )
+
+// Ported from cmd/ferry/main_test.go. The tests that drove the old command
+// functions through package globals (unshare's revoke failure, --open) now
+// run the generated CLI in surfaces_test.go.
 
 func TestFindExistingLiveShareIn(t *testing.T) {
 	t.Parallel()
@@ -44,112 +41,6 @@ func TestFindExistingLiveShareIn(t *testing.T) {
 	}
 	if got.ID != "live" {
 		t.Fatalf("expected live share id, got %q", got.ID)
-	}
-}
-
-func TestRunUnsharePreservesRevokeFailureInsteadOfReportingNotFound(t *testing.T) {
-	var server *httptest.Server
-	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/admin/health":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = fmt.Fprintf(w, `{"ok":true,"public_base_url":%q}`, server.URL)
-		case "/healthz":
-			w.WriteHeader(http.StatusOK)
-		case "/admin/shares/failing-id":
-			if r.Method != http.MethodDelete {
-				http.NotFound(w, r)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = fmt.Fprint(w, `{"error":{"code":"store_error","message":"revoke response failed after mutation"}}`)
-		case "/admin/shares":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = fmt.Fprint(w, `[]`)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer server.Close()
-
-	originalTarget := cliFlags.Unshare.Target
-	originalJSON := cliFlags.JSON
-	cliFlags.Unshare.Target = "failing-id"
-	cliFlags.JSON = false
-	t.Cleanup(func() {
-		cliFlags.Unshare.Target = originalTarget
-		cliFlags.JSON = originalJSON
-	})
-
-	err := runUnshare(share.NewClient(server.URL))
-	if err == nil {
-		t.Fatal("expected revoke failure")
-	}
-	var apiErr *share.APIError
-	if !errors.As(err, &apiErr) {
-		t.Fatalf("expected APIError, got %T: %v", err, err)
-	}
-	if apiErr.StatusCode != http.StatusInternalServerError || apiErr.Code != "store_error" {
-		t.Fatalf("unexpected revoke error: %+v", apiErr)
-	}
-	if cliErr, ok := err.(*cli.CLIError); ok && cliErr.ExitCode == cli.ExitNotFound {
-		t.Fatal("revoke failure was incorrectly rewritten as exit code 3 not-found")
-	}
-}
-
-func TestOpenOnRemotePassesURLAsArgument(t *testing.T) {
-	originalOpen := cliFlags.Publish.Open
-	originalExecCommand := execCommand
-	t.Cleanup(func() {
-		cliFlags.Publish.Open = originalOpen
-		execCommand = originalExecCommand
-	})
-
-	cliFlags.Publish.Open = "laptop"
-	var gotName string
-	var gotArgs []string
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		gotName = name
-		gotArgs = append([]string(nil), args...)
-		return exec.Command("true")
-	}
-
-	url := "https://example.com/share?name=o'hare"
-	if err := openOnRemote(url); err != nil {
-		t.Fatalf("openOnRemote returned error: %v", err)
-	}
-
-	if gotName != "ssh" {
-		t.Fatalf("expected ssh command, got %q", gotName)
-	}
-	wantArgs := []string{"laptop", "open", url}
-	if !reflect.DeepEqual(gotArgs, wantArgs) {
-		t.Fatalf("expected args %v, got %v", wantArgs, gotArgs)
-	}
-}
-
-func TestOpenOnRemoteRejectsHostStartingWithDash(t *testing.T) {
-	originalOpen := cliFlags.Publish.Open
-	originalExecCommand := execCommand
-	t.Cleanup(func() {
-		cliFlags.Publish.Open = originalOpen
-		execCommand = originalExecCommand
-	})
-
-	cliFlags.Publish.Open = "-oProxyCommand=evil"
-	called := false
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		called = true
-		return exec.Command("true")
-	}
-
-	err := openOnRemote("https://example.com/share")
-	if err == nil {
-		t.Fatal("expected error rejecting host that starts with '-'")
-	}
-	if called {
-		t.Fatal("ssh should not have been invoked")
 	}
 }
 
