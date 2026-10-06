@@ -127,7 +127,7 @@ func (s *Store) ListShares(activeOnly bool) ([]Share, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list shares: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	shares := []Share{}
 	for rows.Next() {
@@ -222,7 +222,7 @@ func (s *Store) ExpiredShares(now time.Time) ([]Share, error) {
 	if err != nil {
 		return nil, fmt.Errorf("query expired shares: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	shares := []Share{}
 	for rows.Next() {

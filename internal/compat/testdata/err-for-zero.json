@@ -1,0 +1,23 @@
+{
+  "caller": "renew",
+  "args": [
+    "renew",
+    "--for=0",
+    "--json",
+    "{id}"
+  ],
+  "exit": 2,
+  "stderr_error": {
+    "error": {
+      "code": "invalid_args",
+      "exit_code": 2,
+      "message": "--for must be greater than zero"
+    }
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    }
+  ]
+}

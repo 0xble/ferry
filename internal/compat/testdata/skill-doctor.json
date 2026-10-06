@@ -1,0 +1,14 @@
+{
+  "caller": "show-me skill",
+  "args": [
+    "doctor"
+  ],
+  "exit": 0,
+  "stdout_text": "tailscale: ok\ndaemon: ok\n",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    }
+  ]
+}

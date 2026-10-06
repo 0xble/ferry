@@ -1,6 +1,6 @@
 # tailscale-ferry
 
-[![CI](https://github.com/0xble/tailscale-ferry/actions/workflows/ci.yml/badge.svg)](https://github.com/0xble/tailscale-ferry/actions/workflows/ci.yml)
+[![Gate](https://github.com/0xble/tailscale-ferry/actions/workflows/gate.yml/badge.svg)](https://github.com/0xble/tailscale-ferry/actions/workflows/gate.yml)
 [![Release](https://img.shields.io/github/v/release/0xble/tailscale-ferry?include_prereleases&sort=semver)](https://github.com/0xble/tailscale-ferry/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/0xble/ferry.svg)](https://pkg.go.dev/github.com/0xble/ferry)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -86,7 +86,30 @@ ferry unshare <target>
 
 # Check daemon and Tailscale health
 ferry doctor
+
+# Preview a publish, renewal or revocation without changing anything
+ferry publish --dry-run ~/Desktop/report.pdf
 ```
+
+`--json` prints JSON on every command, and errors become a JSON envelope on
+stderr, `{"error":{"code","message","exit_code"}}`. Exit codes: 0 success, 1
+error, 2 usage, 3 not found.
+
+### Operations API and MCP
+
+The client is built on [toolkit](https://github.com/0xble/toolkit), so the
+same operations are also an HTTP API and MCP tools:
+
+```sh
+ferry metadata --json                      # every operation and its schema
+ferry mcp                                  # MCP over stdio: list, get, doctor
+ferry serve --socket ~/.local/state/ferry/ops.sock
+```
+
+`ferry serve` serves the operations on a `0600` Unix socket and refuses
+applied writes by default. It is not `ferryd serve`, the share server.
+Publishing takes a local path, so `publish` accepts its path (and `--open`)
+only on the command line.
 
 ## How it compares
 
@@ -107,8 +130,8 @@ three HTTP listeners.
 
 - **Public** (tailnet IP, port 39124): preview and raw file endpoints
 - **Loopback** (127.0.0.1, port 39124): same as public, for local access
-- **Admin** (127.0.0.1, port 39125): share CRUD API used by the `ferry`
-  client
+- **Admin** (Unix socket `~/.local/state/ferry/admin.sock`): share CRUD API
+  used by the `ferry` client
 
 State is stored in `~/.local/state/ferry/` with the HMAC secret in a
 0600-mode file under a 0700-mode directory.

@@ -1,0 +1,16 @@
+{
+  "caller": "show-me skill",
+  "args": [
+    "doctor",
+    "--json"
+  ],
+  "exit": 0,
+  "stdout_json": {
+    "daemon_error": "Get \"http://ferry-admin/admin/health\": dial unix \u003chome\u003e/.local/state/ferry/admin.sock: connect: \u003cerror\u003e",
+    "daemon_ok": false,
+    "tailscale_error": "tailscale ip -4: exec: \"tailscale\": executable file not found in $PATH; tailscale status --json: exec: \"tailscale\": executable file not found in $PATH",
+    "tailscale_ok": false
+  },
+  "requests": [],
+  "change": "C3: doctor --json exits 1 with health_check_failed on stderr when a check fails; the report on stdout is unchanged"
+}

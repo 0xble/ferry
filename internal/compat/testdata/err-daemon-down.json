@@ -1,0 +1,11 @@
+{
+  "caller": "every daemon command",
+  "args": [
+    "list",
+    "--json"
+  ],
+  "exit": 1,
+  "stderr_text": "ferryd daemon binary not found in PATH\n",
+  "requests": [],
+  "change": "C2: the daemon_unavailable envelope instead of the raw error text; exit 1 is unchanged"
+}

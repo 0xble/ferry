@@ -1,0 +1,19 @@
+{
+  "caller": "README",
+  "args": [
+    "unshare",
+    "{id}"
+  ],
+  "exit": 0,
+  "stdout_text": "revoked share: \u003cid1\u003e\n",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/shares/\u003cid1\u003e"
+    }
+  ]
+}

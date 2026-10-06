@@ -1,0 +1,15 @@
+{
+  "caller": "contracts",
+  "args": [
+    "definitely-not-a-real-subcommand-xyz"
+  ],
+  "exit": 1,
+  "stderr_text": "stat \u003chome\u003e/work/definitely-not-a-real-subcommand-xyz: no such file or directory\n",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    }
+  ],
+  "change": "C6: an unknown word that is not an existing path is a usage error, instead of publishing it and failing to stat it"
+}

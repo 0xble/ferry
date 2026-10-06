@@ -1,0 +1,33 @@
+{
+  "caller": "show-me skill",
+  "args": [
+    "unshare",
+    "--json",
+    "--",
+    "{work}/notes.txt"
+  ],
+  "exit": 0,
+  "stdout_json": {
+    "ok": true,
+    "path": "\u003chome\u003e/work/notes.txt",
+    "revoked": 2
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/shares"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/shares/\u003cid1\u003e"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/shares/\u003cid2\u003e"
+    }
+  ]
+}

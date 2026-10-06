@@ -1,0 +1,22 @@
+{
+  "caller": "publish",
+  "args": [
+    "publish",
+    "--json",
+    "{work}/escape/plan.md"
+  ],
+  "exit": 2,
+  "stderr_error": {
+    "error": {
+      "code": "invalid_args",
+      "exit_code": 2,
+      "message": "markdown file references assets outside its directory; publish the parent directory explicitly"
+    }
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    }
+  ]
+}

@@ -1,134 +1,150 @@
 #!/usr/bin/env bash
-# Repository CI contract.
+# Repository CI entrypoint for a Go tool, from github.com/0xble/toolkit
+# templates/tool. Profiles:
+#   preflight  quick local feedback: format, modules, vet, build, short tests,
+#              lint when golangci-lint is installed
+#   gate       exact-SHA merge requirement: ./bin/check (the rendered fleet
+#              policy), race tests and golangci-lint
+#   nightly    gate plus repeated race runs and govulncheck
+# Needs Go (see go.mod) and bin/check's own tools. gate and nightly also need
+# golangci-lint, and nightly needs govulncheck. The reusable toolkit workflows
+# install them.
 #
-#   ./bin/ci preflight                 fast, offline, bypassable developer feedback
-#   ./bin/ci gate <exact-HEAD-SHA>     merge requirement, run by the GitHub gate
-#   ./bin/ci nightly <exact-HEAD-SHA>  gate plus broad validation, run on schedule
-#
-# Stages run in a fixed order so the first failure is the one worth fixing.
-
+# Usage: bin/ci preflight|gate|nightly [expected-sha]
+# An expected SHA (argument or CI_EXPECTED_SHA) is asserted, with a clean
+# tracked tree, before and after the lanes. A local gate or nightly run with
+# an expected SHA also writes an optional readiness receipt under
+# ${XDG_STATE_HOME:-~/.local/state}/ci-receipts; CI=true or
+# CI_SKIP_LOCAL_RECEIPT=true skips it. Nothing else reads personal state.
 set -euo pipefail
 
-usage() {
-  printf 'Usage: ./bin/ci preflight | gate <exact-HEAD-SHA> | nightly <exact-HEAD-SHA>\n' >&2
-  exit 64
+cd "$(dirname "$0")/.."
+export GOWORK=off GOFLAGS=-mod=readonly GOTOOLCHAIN="${GOTOOLCHAIN:-local}"
+
+log() { printf '==> %s\n' "$*" >&2; }
+
+expected_sha="${CI_EXPECTED_SHA:-${2:-}}"
+
+assert_candidate() {
+  [ -n "$expected_sha" ] || return 0
+  printf '%s' "$expected_sha" | grep -Eq '^[0-9a-f]{40}$' || { echo "expected SHA must be 40 lowercase hex characters" >&2; exit 1; }
+  actual="$(git rev-parse HEAD)"
+  [ "$actual" = "$expected_sha" ] || { echo "HEAD is $actual, expected $expected_sha" >&2; exit 1; }
+  [ -z "$(git status --porcelain --untracked-files=no)" ] || { echo "tracked files are modified" >&2; exit 1; }
+}
+
+write_local_receipt() {
+  [ -n "$expected_sha" ] && [ "${CI:-}" != true ] && [ "${GITHUB_ACTIONS:-}" != true ] &&
+    [ "${CI_SKIP_LOCAL_RECEIPT:-}" != true ] || return 0
+  local remote owner repo branch dir receipt
+  remote="$(git remote get-url origin 2>/dev/null)" || { log "no receipt: origin remote is unavailable"; return 0; }
+  remote="${remote%/}"
+  remote="${remote%.git}"
+  repo="$(printf '%s' "${remote##*/}" | tr '[:upper:]' '[:lower:]')"
+  owner="${remote%/*}"
+  owner="$(printf '%s' "${owner##*[:/]}" | tr '[:upper:]' '[:lower:]')"
+  branch="$(git branch --show-current)"
+  if ! printf '%s\n%s\n%s\n' "$owner" "$repo" "$branch" | grep -Eqv '^[A-Za-z0-9._/-]+$'; then
+    dir="${CI_RECEIPT_ROOT:-${XDG_STATE_HOME:-$HOME/.local/state}/ci-receipts}/$owner/$repo"
+    receipt="$dir/$expected_sha.json"
+    mkdir -p "$dir"
+    (
+      umask 077
+      printf '{\n  "schema_version": 1,\n  "repository": "%s/%s",\n  "sha": "%s",\n  "branch": "%s",\n  "command": "./bin/ci gate",\n  "gate_exit": 0,\n  "clean_tracked_tree": true,\n  "timestamp": "%s"\n}\n' \
+        "$owner" "$repo" "$expected_sha" "$branch" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$receipt.tmp.$$"
+    )
+    mv -f "$receipt.tmp.$$" "$receipt"
+    log "local gate receipt: $receipt"
+  else
+    log "no receipt: unsupported origin or branch name"
+  fi
+}
+
+lane_fmt() {
+  log "lane fmt"
+  unformatted="$(gofmt -l .)"
+  [ -z "$unformatted" ] || { printf 'gofmt needed:\n%s\n' "$unformatted" >&2; return 1; }
+}
+
+lane_mod() {
+  log "lane mod"
+  go mod verify
+  go mod tidy -diff
+}
+
+lane_vet() {
+  log "lane vet"
+  go vet ./...
+  go build ./...
+}
+
+lane_test_short() {
+  log "lane test (short)"
+  go test -short -count=1 ./...
+}
+
+lane_check() {
+  log "lane check (bin/check)"
+  [ -x bin/check ] || { echo "bin/check is missing: render it with the fleet policy" >&2; return 1; }
+  ./bin/check
+}
+
+lane_test() {
+  log "lane test (race)"
+  go test -race -count=1 ./...
+}
+
+lane_lint() {
+  log "lane lint"
+  golangci-lint run ./...
+}
+
+lane_soak() {
+  log "lane soak (race x5)"
+  go test -race -count=5 ./...
+}
+
+lane_vuln() {
+  log "lane vuln"
+  govulncheck ./...
 }
 
 profile="${1:-}"
 case "$profile" in
-  preflight) [[ $# -eq 1 ]] || usage ;;
-  gate|nightly) [[ $# -eq 2 && "$2" =~ ^[0-9a-f]{40}$ ]] || usage ;;
-  *) usage ;;
+  preflight)
+    lane_fmt
+    lane_mod
+    lane_vet
+    if command -v golangci-lint >/dev/null; then
+      lane_lint
+    else
+      log "skipped lane lint: golangci-lint is not installed (gate runs it)"
+    fi
+    lane_test_short
+    ;;
+  gate)
+    assert_candidate
+    lane_mod
+    lane_check
+    lane_test
+    lane_lint
+    assert_candidate
+    write_local_receipt
+    ;;
+  nightly)
+    assert_candidate
+    lane_mod
+    lane_check
+    lane_test
+    lane_lint
+    lane_soak
+    lane_vuln
+    assert_candidate
+    write_local_receipt
+    ;;
+  *)
+    echo "usage: bin/ci preflight|gate|nightly [expected-sha]" >&2
+    exit 2
+    ;;
 esac
-
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-cd "$root"
-
-if ! command -v go >/dev/null 2>&1; then
-  echo "env_missing: go toolchain not found on PATH" >&2
-  exit 127
-fi
-
-run() {
-  local stage=$1
-  shift
-  printf '>> %s\n' "$stage"
-  "$@"
-}
-
-check_format() {
-  local unformatted
-  unformatted=$(git ls-files -z -- '*.go' | xargs -0 gofmt -l)
-  if [[ -n "$unformatted" ]]; then
-    printf 'gofmt would reformat:\n%s\n' "$unformatted" >&2
-    return 1
-  fi
-}
-
-if [[ "$profile" == preflight ]]; then
-  # Works on a dirty developer checkout. No tests, no network beyond the module cache.
-  run whitespace git diff --check
-  run whitespace-staged git diff --cached --check
-  run format check_format
-  run vet go vet ./...
-  run build go build ./...
-  printf 'PASS: preflight at %s\n' "$(git rev-parse HEAD)"
-  exit 0
-fi
-
-expected=$2
-write_local_receipt() {
-  local remote path owner repo branch state_root receipt tmp
-  remote=$(git remote get-url origin 2>/dev/null) || {
-    echo 'cannot write local gate receipt: origin remote is unavailable' >&2
-    return 1
-  }
-  remote=${remote%/}
-  remote=${remote%.git}
-  case "$remote" in
-    *://*) path=${remote#*://}; path=${path#*/} ;;
-    *:*) path=${remote##*:} ;;
-    *) path=$remote ;;
-  esac
-  repo=${path##*/}
-  owner=${path%/*}
-  owner=$(printf '%s' "$owner" | tr '[:upper:]' '[:lower:]')
-  repo=$(printf '%s' "$repo" | tr '[:upper:]' '[:lower:]')
-  if [[ ! "$owner" =~ ^[a-z0-9][a-z0-9._-]*$ || ! "$repo" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
-    echo "cannot write local gate receipt: unsupported origin URL $remote" >&2
-    return 1
-  fi
-  branch=$(git branch --show-current)
-  branch=${branch//\\/\\\\}
-  branch=${branch//\"/\\\"}
-  state_root="${CI_RECEIPT_ROOT:-${XDG_STATE_HOME:-$HOME/.local/state}/ci-receipts}"
-  receipt="$state_root/$owner/$repo/$expected.json"
-  tmp="$receipt.tmp.$$"
-  mkdir -p "$(dirname "$receipt")"
-  (
-    umask 077
-    printf '{\n  "schema_version": 1,\n  "repository": "%s/%s",\n  "sha": "%s",\n  "branch": "%s",\n  "command": "./bin/ci gate",\n  "gate_exit": 0,\n  "clean_tracked_tree": true,\n  "timestamp": "%s"\n}\n' \
-      "$owner" "$repo" "$expected" "$branch" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$tmp"
-  )
-  mv -f -- "$tmp" "$receipt"
-  printf 'local gate receipt: %s\n' "$receipt"
-}
-
-assert_candidate() {
-  local actual
-  actual=$(git rev-parse HEAD)
-  if [[ "$actual" != "$expected" ]]; then
-    printf 'ERROR: HEAD mismatch: expected %s, got %s\n' "$expected" "$actual" >&2
-    exit 1
-  fi
-  if ! git diff --quiet --ignore-submodules=none || ! git diff --cached --quiet --ignore-submodules=none; then
-    printf 'ERROR: tracked candidate tree is dirty at %s\n' "$expected" >&2
-    exit 1
-  fi
-}
-
-assert_candidate
-export CI=true
-run format check_format
-run vet go vet ./...
-run test go test ./...
-run build go build ./...
-run race go test -race ./...
-
-if [[ "$profile" == nightly ]]; then
-  run race-uncached-shuffled go test -race -count=1 -shuffle=on ./...
-  # Cross-compile every target the release configuration ships.
-  for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
-    for cmd in ferry ferryd; do
-      run "cross-build $cmd $target" env CGO_ENABLED=0 GOOS="${target%/*}" GOARCH="${target#*/}" \
-        go build -o /dev/null "./cmd/$cmd"
-    done
-  done
-fi
-
-assert_candidate
-if [[ "$profile" == gate && "${GITHUB_ACTIONS:-}" != true ]]; then
-  # Local exact-SHA evidence for tooling that marks PRs ready. Hosted CI stays authoritative.
-  write_local_receipt
-fi
-printf 'PASS: %s validated %s and unchanged tracked tree\n' "$profile" "$expected"
+log "$profile passed"

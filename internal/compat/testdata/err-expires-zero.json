@@ -1,0 +1,18 @@
+{
+  "caller": "publish",
+  "args": [
+    "publish",
+    "--expires-in=0",
+    "--json",
+    "{work}/notes.txt"
+  ],
+  "exit": 2,
+  "stderr_error": {
+    "error": {
+      "code": "invalid_args",
+      "exit_code": 2,
+      "message": "--expires-in must be greater than zero"
+    }
+  },
+  "requests": []
+}

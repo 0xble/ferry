@@ -1,0 +1,22 @@
+{
+  "caller": "get",
+  "args": [
+    "get",
+    "--json",
+    "--",
+    "nope"
+  ],
+  "exit": 1,
+  "stderr_text": "not_found: share not found\n",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/shares/nope"
+    }
+  ],
+  "change": "C2, C5: a daemon 404 is the not_found envelope, exit 3, instead of `not_found: share not found` text, exit 1"
+}

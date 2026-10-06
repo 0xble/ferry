@@ -1,0 +1,9 @@
+{
+  "caller": "README",
+  "args": [
+    "--version"
+  ],
+  "exit": 0,
+  "stdout_text": "dev\n",
+  "requests": []
+}

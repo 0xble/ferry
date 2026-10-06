@@ -1,0 +1,31 @@
+{
+  "caller": "unshare",
+  "args": [
+    "unshare",
+    "--json",
+    "--",
+    "nope"
+  ],
+  "exit": 3,
+  "stderr_error": {
+    "error": {
+      "code": "not_found",
+      "exit_code": 3,
+      "message": "no active share matched target"
+    }
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/shares/nope"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/shares"
+    }
+  ]
+}

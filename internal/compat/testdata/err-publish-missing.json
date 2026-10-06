@@ -1,0 +1,17 @@
+{
+  "caller": "publish",
+  "args": [
+    "publish",
+    "--json",
+    "{work}/missing.md"
+  ],
+  "exit": 1,
+  "stderr_text": "stat \u003chome\u003e/work/missing.md: no such file or directory\n",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    }
+  ],
+  "change": "C2, C5: a missing path is the not_found envelope, exit 3, before the daemon is checked, instead of the stat error text, exit 1"
+}

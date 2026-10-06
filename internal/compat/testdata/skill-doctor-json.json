@@ -1,0 +1,18 @@
+{
+  "caller": "show-me skill",
+  "args": [
+    "doctor",
+    "--json"
+  ],
+  "exit": 0,
+  "stdout_json": {
+    "daemon_ok": true,
+    "tailscale_ok": true
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    }
+  ]
+}
