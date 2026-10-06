@@ -1,0 +1,22 @@
+{
+  "caller": "renew",
+  "args": [
+    "renew",
+    "--json",
+    "--",
+    "nope"
+  ],
+  "exit": 1,
+  "stderr_text": "not_found: share not found\n",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/shares/nope/renew"
+    }
+  ],
+  "change": "C2, C5: a daemon 404 is the not_found envelope, exit 3, instead of `not_found: share not found` text, exit 1"
+}

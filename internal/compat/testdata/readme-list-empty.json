@@ -1,0 +1,18 @@
+{
+  "caller": "README",
+  "args": [
+    "list"
+  ],
+  "exit": 0,
+  "stdout_text": "No active shares\n",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/shares"
+    }
+  ]
+}

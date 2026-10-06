@@ -1,0 +1,19 @@
+{
+  "caller": "README",
+  "args": [
+    "renew",
+    "{id}"
+  ],
+  "exit": 0,
+  "stdout_text": "id: \u003cid1\u003e\nkind: file\nmode: live\npath: \u003chome\u003e/work/notes.txt\ncreated: \u003ctime\u003e\nexpires: \u003ctime\u003e\nurl: https://ferry.invalid/share/s/\u003cid1\u003e?t=\u003ctoken\u003e\n",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/shares/\u003cid1\u003e/renew"
+    }
+  ]
+}

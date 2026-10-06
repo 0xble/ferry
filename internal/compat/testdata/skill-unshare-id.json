@@ -1,0 +1,24 @@
+{
+  "caller": "show-me skill",
+  "args": [
+    "unshare",
+    "--json",
+    "--",
+    "{id}"
+  ],
+  "exit": 0,
+  "stdout_json": {
+    "id": "\u003cid1\u003e",
+    "ok": true
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/shares/\u003cid1\u003e"
+    }
+  ]
+}

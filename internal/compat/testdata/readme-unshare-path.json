@@ -1,0 +1,27 @@
+{
+  "caller": "README",
+  "args": [
+    "unshare",
+    "{work}/notes.txt"
+  ],
+  "exit": 0,
+  "stdout_text": "revoked 2 share(s) for \u003chome\u003e/work/notes.txt\n",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/shares"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/shares/\u003cid1\u003e"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/shares/\u003cid2\u003e"
+    }
+  ]
+}

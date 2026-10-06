@@ -1,0 +1,14 @@
+{
+  "caller": "publish",
+  "args": [
+    "publish",
+    "--expires-in=abc",
+    "--json",
+    "{work}/notes.txt"
+  ],
+  "exit": 80,
+  "stdout_text": "Usage: ferry publish \u003cpath\u003e [flags]\n\nPublish a file or directory\n\nArguments:\n  \u003cpath\u003e    File or directory path to publish\n\nFlags:\n  -h, --help               Show context-sensitive help.\n  -j, --json               Output as JSON\n  -V, --version            Show version and exit\n\n      --snapshot           Snapshot content instead of live mode\n      --expires-in=168h    Share lifetime (default: 7d)\n      --open=STRING        Open URL on a remote machine via SSH (e.g. laptop)\n\n",
+  "stderr_text": "ferry: error: --expires-in: expected duration but got \"abc\": time: invalid duration \"abc\"\n",
+  "requests": [],
+  "change": "C4: an invalid duration is the invalid_args envelope, exit 2, instead of kong's usage text and exit 80"
+}

@@ -1,0 +1,19 @@
+{
+  "caller": "show-me skill",
+  "args": [
+    "list",
+    "--json"
+  ],
+  "exit": 0,
+  "stdout_json": [],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/shares"
+    }
+  ]
+}

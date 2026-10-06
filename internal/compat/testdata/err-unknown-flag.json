@@ -1,0 +1,11 @@
+{
+  "caller": "contracts",
+  "args": [
+    "--definitely-not-a-real-flag-xyz"
+  ],
+  "exit": 80,
+  "stdout_text": "Usage: ferry \u003ccommand\u003e [flags]\n\nTailnet-only file and directory serving\n\nFlags:\n  -h, --help       Show context-sensitive help.\n  -j, --json       Output as JSON\n  -V, --version    Show version and exit\n\nCommands:\n  publish \u003cpath\u003e [flags]\n    Publish a file or directory\n\n  list [flags]\n    List active shares\n\n  get \u003cid\u003e [flags]\n    Get a share by id\n\n  unshare \u003ctarget\u003e [flags]\n    Revoke a share by id or exact path\n\n  renew \u003cid\u003e [flags]\n    Extend share expiry\n\n  doctor [flags]\n    Check daemon and Tailscale health\n\nRun \"ferry \u003ccommand\u003e --help\" for more information on a command.\n\n",
+  "stderr_text": "ferry: error: unknown flag --definitely-not-a-real-flag-xyz\n",
+  "requests": [],
+  "change": "C4: a parse error exits 2 with one error line instead of the usage text and exit 80"
+}

@@ -1,0 +1,40 @@
+{
+  "caller": "show-me skill",
+  "args": [
+    "list",
+    "--json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "created_at": "\u003ctime\u003e",
+      "expires_at": "\u003ctime\u003e",
+      "id": "\u003cid1\u003e",
+      "is_dir": false,
+      "mode": "live",
+      "path": "\u003chome\u003e/work/notes.txt",
+      "revoked": false,
+      "url": "https://ferry.invalid/share/s/\u003cid1\u003e?t=\u003ctoken\u003e"
+    },
+    {
+      "created_at": "\u003ctime\u003e",
+      "expires_at": "\u003ctime\u003e",
+      "id": "\u003cid2\u003e",
+      "is_dir": false,
+      "mode": "snapshot",
+      "path": "\u003chome\u003e/work/report.md",
+      "revoked": false,
+      "url": "https://ferry.invalid/share/s/\u003cid2\u003e?t=\u003ctoken\u003e"
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/admin/health"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/shares"
+    }
+  ]
+}

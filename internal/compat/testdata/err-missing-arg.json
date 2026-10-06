@@ -1,0 +1,12 @@
+{
+  "caller": "get",
+  "args": [
+    "get",
+    "--json"
+  ],
+  "exit": 80,
+  "stdout_text": "Usage: ferry get \u003cid\u003e [flags]\n\nGet a share by id\n\nArguments:\n  \u003cid\u003e    Share ID\n\nFlags:\n  -h, --help       Show context-sensitive help.\n  -j, --json       Output as JSON\n  -V, --version    Show version and exit\n\n",
+  "stderr_text": "ferry: error: expected \"\u003cid\u003e\"\n",
+  "requests": [],
+  "change": "C4: a parse error exits 2 with the usage envelope instead of the usage text and exit 80"
+}
