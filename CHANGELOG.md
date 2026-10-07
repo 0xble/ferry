@@ -10,6 +10,8 @@ Generated release notes for tagged versions are also published on the
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-07
+
 ### Added
 
 - HTML previews publish the preview header's footprint to the artifact as
@@ -196,7 +198,10 @@ Initial public release.
 - Admin API listens on loopback only (`127.0.0.1:39125`); public listener binds
   to the tailnet interface.
 
-[Unreleased]: https://github.com/0xble/ferry/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/0xble/ferry/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/0xble/ferry/compare/v2.2.1...v2.3.0
+[2.2.1]: https://github.com/0xble/ferry/compare/v2.2.0...v2.2.1
+[2.2.0]: https://github.com/0xble/ferry/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/0xble/ferry/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/0xble/ferry/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/0xble/ferry/compare/v1.2.0...v2.0.0
