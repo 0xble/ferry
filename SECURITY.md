@@ -4,7 +4,7 @@
 
 Please report security vulnerabilities through GitHub's private vulnerability reporting:
 
-https://github.com/0xble/tailscale-ferry/security/advisories/new
+https://github.com/0xble/ferry/security/advisories/new
 
 Do not open a public issue for security concerns.
 

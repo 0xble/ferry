@@ -1,4 +1,5 @@
 version: 2
+project_name: ferry
 
 builds:
   - id: ferry
@@ -38,7 +39,7 @@ snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
 changelog:
-  use: github
+  use: git
   sort: asc
   groups:
     - title: Features

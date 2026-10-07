@@ -1,7 +1,7 @@
-# tailscale-ferry
+# ferry
 
-[![Gate](https://github.com/0xble/tailscale-ferry/actions/workflows/gate.yml/badge.svg)](https://github.com/0xble/tailscale-ferry/actions/workflows/gate.yml)
-[![Release](https://img.shields.io/github/v/release/0xble/tailscale-ferry?include_prereleases&sort=semver)](https://github.com/0xble/tailscale-ferry/releases)
+[![Gate](https://github.com/0xble/ferry/actions/workflows/gate.yml/badge.svg)](https://github.com/0xble/ferry/actions/workflows/gate.yml)
+[![Release](https://img.shields.io/github/v/release/0xble/ferry?include_prereleases&sort=semver)](https://github.com/0xble/ferry/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/0xble/ferry.svg)](https://pkg.go.dev/github.com/0xble/ferry)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 

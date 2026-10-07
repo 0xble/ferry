@@ -47,7 +47,7 @@ First inspect `git config --show-scope --get-all core.hooksPath`. If another hoo
 
 ## Reporting bugs
 
-Open an issue at https://github.com/0xble/tailscale-ferry/issues with:
+Open an issue at https://github.com/0xble/ferry/issues with:
 
 - What you expected vs what happened
 - Steps to reproduce
