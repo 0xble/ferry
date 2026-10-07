@@ -89,6 +89,27 @@ func TestPDFPreviewRedirectsToRawRoute(t *testing.T) {
 	}
 }
 
+func TestHTMLPreviewHeaderBridgePublishesInsetForPinnedUI(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []string{
+		`root.style.setProperty("--ferry-inset-top",inset+"px")`,
+		`root.style.setProperty("--ferry-inset-visible",Math.max(0,inset-Math.max(0,window.scrollY))+"px")`,
+		// Published only after the inset is applied, so clipped artifacts keep the CSS fallback.
+		`const sync=()=>{if(inset===null)return;`,
+		`const apply=top=>{if(clips())return;`,
+		`inset=top;post({type:"ferry:inset-applied"});report()`,
+		`const report=()=>{frame=0;sync();post({type:"ferry:scroll",offset:window.scrollY})}`,
+	} {
+		if !strings.Contains(htmlPreviewHeaderBridgeScript, want) {
+			t.Fatalf("expected header bridge to contain %q, got %q", want, htmlPreviewHeaderBridgeScript)
+		}
+	}
+	if !strings.Contains(htmlViewportContainmentMarkup, htmlPreviewHeaderBridgeScript) {
+		t.Fatal("expected served HTML artifacts to include the header bridge")
+	}
+}
+
 func TestContainHTMLArtifactViewportInjectsGuardAfterDoctype(t *testing.T) {
 	t.Parallel()
 

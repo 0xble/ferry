@@ -34,6 +34,9 @@ tokens.
 - Sandboxed HTML artifacts execute inline CSS and JavaScript while blocking
   fetch/XHR, external runtime subresources, forms, nested frames, storage, parent/top
   navigation, and Ferry-origin access
+- The HTML preview header scrolls away with the artifact. Pin fixed or sticky
+  artifact UI below it with `top: var(--ferry-inset-visible, 0px)`;
+  `--ferry-inset-top` holds the full header height
 - HMAC-SHA256 token auth per share
 - Directory listing with breadcrumb navigation
 - Automatic share expiry and garbage collection
