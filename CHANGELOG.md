@@ -10,6 +10,8 @@ Generated release notes for tagged versions are also published on the
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-10-06
+
 ### Changed
 
 - The repository is renamed from `tailscale-ferry` to `ferry`, matching the
