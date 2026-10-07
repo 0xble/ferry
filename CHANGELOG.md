@@ -10,6 +10,16 @@ Generated release notes for tagged versions are also published on the
 
 ## [Unreleased]
 
+### Added
+
+- HTML previews publish the preview header's footprint to the artifact as
+  root CSS custom properties: `--ferry-inset-top` (the header height) and
+  `--ferry-inset-visible` (the part still covering the viewport, which shrinks
+  to `0px` as the header scrolls away). Fixed or sticky artifact UI can use
+  `top: var(--ferry-inset-visible, 0px)` to stay clear of the header. Both are
+  unset when the artifact clips its own viewport and the header stays above
+  the frame.
+
 ## [2.2.1] - 2026-10-06
 
 ### Changed

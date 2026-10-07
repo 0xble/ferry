@@ -7,8 +7,8 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
-LONG = "<!doctype html><meta name=\"viewport\" content=\"width=device-width\"><body style=\"margin:0\"><h1 id=\"first\" style=\"margin:0\">Top</h1>" + "<p>Line</p>" * 300 + "</body>"
-CLIPPED = "<!doctype html><style>html,body{height:100%;overflow:hidden;margin:0}</style><main style=\"height:100%;overflow:auto\"><h1 id=\"first\" style=\"margin:0\">Top</h1>" + "<p>Line</p>" * 300 + "</main>"
+LONG = "<!doctype html><meta name=\"viewport\" content=\"width=device-width\"><body style=\"margin:0\"><nav id=\"pin\" style=\"position:fixed;right:0;top:var(--ferry-inset-visible,0px);width:40px;height:40px\"></nav><h1 id=\"first\" style=\"margin:0\">Top</h1>" + "<p>Line</p>" * 300 + "</body>"
+CLIPPED = "<!doctype html><style>html,body{height:100%;overflow:hidden;margin:0}</style><nav id=\"pin\" style=\"position:fixed;right:0;top:var(--ferry-inset-visible,0px);width:40px;height:40px\"></nav><main style=\"height:100%;overflow:auto\"><h1 id=\"first\" style=\"margin:0\">Top</h1>" + "<p>Line</p>" * 300 + "</main>"
 
 PROBE = f'''package share
 import ("encoding/json"; "fmt"; "testing")
@@ -43,21 +43,35 @@ with sync_playwright() as p:
                 header = page.locator(".box-header")
                 header_height = header.bounding_box()["height"]
                 first = page.frames[1].locator("#first")
+                pin = page.frames[1].locator("#pin")
                 if artifact == "long":
                     page.wait_for_function("document.querySelector('.artifact-shell').classList.contains('is-overlay')")
                     # At rest the header must not cover the artifact's first line.
                     assert first.bounding_box()["y"] >= header_height - 1, (engine, width, "header covers content")
+                    # Pinned UI using --ferry-inset-visible sits directly under the header.
+                    assert abs(pin.bounding_box()["y"] - header_height) <= 1, (engine, width, "pinned UI not under header", pin.bounding_box())
+                    assert abs(page.frames[1].evaluate("parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ferry-inset-top'))") - header_height) <= 1, (engine, width, "inset-top")
                     page.frames[1].evaluate("window.scrollTo(0, 30)")
                     page.wait_for_function("getComputedStyle(document.querySelector('.box-header')).transform.includes('-30')")
+                    page.wait_for_timeout(100)
+                    # Pinned UI follows the header as it slides away.
+                    assert abs(pin.bounding_box()["y"] - (header_height - 30)) <= 1, (engine, width, "pinned UI does not follow header", pin.bounding_box())
                     page.frames[1].evaluate("window.scrollTo(0, 2000)")
                     page.wait_for_function(f"document.querySelector('.box-header').getBoundingClientRect().bottom <= 1")
+                    page.wait_for_timeout(100)
+                    assert abs(pin.bounding_box()["y"]) <= 1, (engine, width, "pinned UI not at top once header is gone", pin.bounding_box())
                     page.frames[1].evaluate("window.scrollTo(0, 0)")
                     page.wait_for_function("document.querySelector('.box-header').getBoundingClientRect().top >= -1")
+                    page.wait_for_timeout(100)
+                    assert abs(pin.bounding_box()["y"] - header_height) <= 1, (engine, width, "pinned UI not restored under header")
                     assert abs(page.locator("iframe").bounding_box()["height"] - height) <= 1, (engine, width, "frame not full height")
                 else:
                     page.wait_for_timeout(300)
                     assert not page.evaluate("document.querySelector('.artifact-shell').classList.contains('is-overlay')"), (engine, width, "clipped artifact overlaid")
                     assert first.bounding_box()["y"] >= header_height - 1, (engine, width, "clipped content covered")
+                    # The bridge bails, so the variables stay unset and pinned UI uses its fallback.
+                    assert page.frames[1].evaluate("getComputedStyle(document.documentElement).getPropertyValue('--ferry-inset-visible')") == "", (engine, width, "clipped artifact got inset var")
+                    assert abs(pin.bounding_box()["y"] - header_height) <= 1, (engine, width, "clipped pinned UI not at frame top")
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), "outer overflow"
                 page.close()
                 count += 1
