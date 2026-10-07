@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -223,7 +224,7 @@ func compare(t *testing.T, c tcase, want, got golden) {
 		t.Errorf("exit %d, want %d (old binary %d)", got.Exit, wantExit, want.Exit)
 	}
 	refusedEarlier := c.fewerRequests && len(got.Requests) < len(want.Requests)
-	if !refusedEarlier && !reflect.DeepEqual(got.Requests, want.Requests) {
+	if !refusedEarlier && !reflect.DeepEqual(revokesUnordered(got.Requests), revokesUnordered(want.Requests)) {
 		t.Errorf("daemon requests differ:\n new %v\n old %v", got.Requests, want.Requests)
 	}
 	if !c.stdoutChanged {
@@ -424,4 +425,26 @@ func TestEveryCaseHasAGolden(t *testing.T) {
 			t.Errorf("golden %s has no case", name)
 		}
 	}
+}
+
+// revokesUnordered sorts each run of consecutive DELETE requests. unshare by
+// path revokes matching shares in the daemon's list order, created_at
+// descending, and shares created within the same second have no defined
+// order in either binary, so the order inside a run is not part of the
+// contract; which shares are revoked, and when, is.
+func revokesUnordered(reqs []ferrytest.Request) []ferrytest.Request {
+	out := slices.Clone(reqs)
+	for i := 0; i < len(out); {
+		j := i
+		for j < len(out) && out[j].Method == "DELETE" {
+			j++
+		}
+		if j > i {
+			slices.SortFunc(out[i:j], func(a, b ferrytest.Request) int { return strings.Compare(a.Path, b.Path) })
+			i = j
+			continue
+		}
+		i++
+	}
+	return out
 }
