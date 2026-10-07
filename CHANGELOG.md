@@ -10,6 +10,8 @@ Generated release notes for tagged versions are also published on the
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-06
+
 ### Changed
 
 - The `ferry` client is rebuilt on [toolkit](https://github.com/0xble/toolkit).
