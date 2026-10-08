@@ -154,7 +154,7 @@ func TestGCSweepsOrphanAndInactiveSnapshotDirectories(t *testing.T) {
 		t.Fatalf("mkdir orphan: %v", err)
 	}
 
-	d.gcExpiredShares(now)
+	d.gcSnapshots(now)
 
 	for _, id := range []string{"revoked-snapshot", "expired-snapshot", "orphan"} {
 		if _, err := os.Stat(filepath.Join(d.cfg.Paths.SnapshotsDir, id)); !os.IsNotExist(err) {
