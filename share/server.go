@@ -427,12 +427,6 @@ func (d *Daemon) gcSnapshots(now time.Time) {
 	}
 }
 
-// gcExpiredShares is kept as a narrow compatibility wrapper for callers and
-// tests that exercise the previous name; snapshot GC now also removes orphans.
-func (d *Daemon) gcExpiredShares(now time.Time) {
-	d.gcSnapshots(now)
-}
-
 func writeJSON(w http.ResponseWriter, code int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
