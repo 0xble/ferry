@@ -5,7 +5,7 @@ go 1.26.9
 require github.com/alecthomas/kong v1.16.1
 
 require (
-	github.com/0xble/toolkit v0.1.9
+	github.com/0xble/toolkit v0.1.11
 	github.com/PuerkitoBio/goquery v1.13.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/modelcontextprotocol/go-sdk v1.8.0

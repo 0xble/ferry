@@ -11,4 +11,4 @@ concurrency:
   cancel-in-progress: false
 jobs:
   nightly:
-    uses: 0xble/toolkit/.github/workflows/tool-nightly.yml@v0.1.9
+    uses: 0xble/toolkit/.github/workflows/tool-nightly.yml@v0.1.11
