@@ -1,5 +1,5 @@
-github.com/0xble/toolkit v0.1.9 h1:sqhHpRvI8hz/T6pQaliqEBZf2B96UCG6YOcpsAzXH7c=
-github.com/0xble/toolkit v0.1.9/go.mod h1:ZS+T1t2kSJYKBpa87L5A4VRXQZMhg6fF6hI4kGYhxdA=
+github.com/0xble/toolkit v0.1.11 h1:edaPkeW68EU/5KX5AtFsWIDOCxA2VTms1s1BlIQH1/4=
+github.com/0xble/toolkit v0.1.11/go.mod h1:ZS+T1t2kSJYKBpa87L5A4VRXQZMhg6fF6hI4kGYhxdA=
 github.com/PuerkitoBio/goquery v1.13.0 h1:mqHbjD7Jmnul4DTR24LKTjo1uUmHUh072kteGV+xpFM=
 github.com/PuerkitoBio/goquery v1.13.0/go.mod h1:Hip5mdBL8K2wEGKJdr27sRaNwIdDajmCwB/ExUPwW+g=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=

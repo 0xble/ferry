@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   gate:
-    uses: 0xble/toolkit/.github/workflows/tool-gate.yml@v0.1.9
+    uses: 0xble/toolkit/.github/workflows/tool-gate.yml@v0.1.11
 
   # The required check. A called workflow's jobs are reported as
   # "gate / ...", so this job carries the plain `qualification` name.
