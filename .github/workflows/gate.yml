@@ -13,7 +13,9 @@ concurrency:
   cancel-in-progress: true
 jobs:
   gate:
-    uses: 0xble/toolkit/.github/workflows/tool-gate.yml@v0.1.11
+    uses: 0xble/toolkit/.github/workflows/tool-gate.yml@v0.1.14
+    with:
+      caller-qualification: true
 
   # The required check. A called workflow's jobs are reported as
   # "gate / ...", so this job carries the plain `qualification` name.
@@ -26,7 +28,13 @@ jobs:
       - name: Require the reusable gate
         env:
           GATE_RESULT: ${{ needs.gate.result }}
+          LANE_RESULT: ${{ needs.gate.outputs.lane-result }}
         run: |
+          set -euo pipefail
           printf 'reusable gate: %s\n' "$GATE_RESULT"
           [ "$GATE_RESULT" = success ] || { echo 'gate not qualified' >&2; exit 1; }
+          # A reusable workflow with only skipped jobs can report success.
+          # Require its actual exact-SHA lane too; missing output fails closed.
+          printf 'blocking lane gate: %s\n' "$LANE_RESULT"
+          [ "$LANE_RESULT" = success ] || { echo 'gate not qualified' >&2; exit 1; }
           echo 'gate qualified'
