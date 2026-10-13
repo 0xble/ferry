@@ -56,4 +56,5 @@ Open an issue at https://github.com/0xble/ferry/issues with:
 
 ## Security issues
 
-See [SECURITY.md](SECURITY.md).
+See [SECURITY.md](SECURITY.md) for the shared security policy and
+[Ferry security](docs/security.md) for private vulnerability reporting.
