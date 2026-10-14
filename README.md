@@ -156,7 +156,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
 
-See [SECURITY.md](SECURITY.md). Report vulnerabilities privately through
+See [SECURITY.md](SECURITY.md) for the shared security policy and
+[Ferry security](docs/security.md) for vulnerability reporting, security scope,
+and HTML artifact isolation. Report vulnerabilities privately through
 GitHub Security Advisories.
 
 ## License
